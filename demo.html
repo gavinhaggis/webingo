@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Webingo — Shareable Bingo Card Generator</title>
+  <link rel="icon" href="bingo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lz-string/libs/lz-string.min.js"></script>
+  <style>
+    :root {
+      --page-bg:   #f3efed;
+      --panel-bg:  #edeae8;
+      --card-bg:   #fff;
+      --border:    #d4ceca;
+      --btn-bg:    #efa551;
+      --btn-hover: #d48a3a;
+      --accent:    #ffd966;
+      --muted:     #7a6f6a;
+      --dark:      #222034;
+      --font:      'Montserrat', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--page-bg); color: #1a1a1a; }
+    a { color: inherit; text-decoration: none; }
+
+    .btn {
+      font-family: var(--font);
+      font-size: 1rem;
+      background: var(--btn-bg);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 0.8rem 1.75rem;
+      cursor: pointer;
+      font-weight: 700;
+      display: inline-block;
+      transition: background 0.15s;
+      text-align: center;
+    }
+    .btn:hover { background: var(--btn-hover); }
+    .btn-outline {
+      background: transparent;
+      border: 2px solid rgba(255,255,255,0.25);
+      color: rgba(255,255,255,0.8);
+    }
+    .btn-outline:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.5); }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      background: var(--dark);
+      z-index: 100;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .nav-brand { display: flex; align-items: center; gap: 0.6rem; }
+    .nav-brand img { width: 28px; height: 28px; }
+    .nav-brand span { font-size: 1rem; font-weight: 800; color: #fff; }
+    .nav-links { display: flex; gap: 1.25rem; align-items: center; }
+    .nav-links a { font-size: 0.82rem; color: rgba(255,255,255,0.55); transition: color 0.15s; }
+    .nav-links a:hover { color: #fff; }
+    .nav-links .btn { font-size: 0.82rem; padding: 0.45rem 1rem; }
+
+    /* ── Hero ── */
+    .hero {
+      background: var(--dark);
+      color: #fff;
+      text-align: center;
+      padding: 5rem 1.5rem 5.5rem;
+    }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+    }
+    .hero h1 em { color: var(--accent); font-style: normal; }
+    .hero p {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.55);
+      max-width: 480px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.65;
+    }
+    .hero-btns { display: flex; gap: 0.875rem; justify-content: center; flex-wrap: wrap; }
+    .hero-btns .btn { font-size: 1rem; padding: 0.85rem 2rem; }
+
+    /* ── Sections ── */
+    .section { padding: 4.5rem 1.5rem; }
+    .section-alt { background: var(--panel-bg); }
+    .section-dark { background: var(--dark); color: #fff; }
+    .inner { max-width: 920px; margin: 0 auto; }
+    .eyebrow {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .section-dark .eyebrow { color: rgba(255,255,255,0.35); }
+    h2 {
+      font-size: clamp(1.6rem, 3.5vw, 2.1rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.6rem;
+    }
+    .sub {
+      font-size: 0.95rem;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 2.5rem;
+      max-width: 540px;
+    }
+    .section-dark .sub { color: rgba(255,255,255,0.45); }
+
+    /* ── Steps ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+      gap: 1rem;
+    }
+    .step {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.4rem 1.2rem;
+    }
+    .step-num {
+      width: 30px; height: 30px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 0.85rem;
+    }
+    .step h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.35rem; }
+    .step p { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── Demo cards ── */
+    .demo-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+      gap: 1.25rem;
+    }
+    .demo-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      align-items: center;
+    }
+    .demo-card-seed {
+      width: 100%;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .bingo-grid {
+      display: grid;
+      gap: 3px;
+      width: 100%;
+    }
+    .bingo-cell {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2px;
+      font-size: 0.52rem;
+      font-weight: 600;
+      line-height: 1.2;
+      word-break: break-word;
+      overflow: hidden;
+    }
+    .bingo-cell.free {
+      background: rgba(255,217,102,0.22);
+      border-color: rgba(255,217,102,0.55);
+      font-size: 0.6rem;
+      font-weight: 800;
+    }
+    .demo-card .btn { width: 100%; font-size: 0.85rem; padding: 0.55rem 1rem; }
+
+    /* ── Presets ── */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+    .preset-tile {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem;
+    }
+    .preset-tile h3 { font-size: 0.92rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .preset-tile .count { font-size: 0.72rem; color: var(--muted); margin-bottom: 0.7rem; }
+    .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .tag {
+      font-size: 0.62rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      color: var(--muted);
+    }
+
+    /* ── Features ── */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+    .feature {
+      padding: 1.25rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+    }
+    .feature-icon { font-size: 1.4rem; margin-bottom: 0.6rem; }
+    .feature h3 { font-size: 0.9rem; font-weight: 700; color: #fff; margin-bottom: 0.35rem; }
+    .feature p { font-size: 0.78rem; color: rgba(255,255,255,0.45); line-height: 1.5; }
+
+    /* ── CTA ── */
+    .cta { text-align: center; }
+    .cta h2 { color: #fff; margin-bottom: 0.6rem; }
+    .cta p { color: rgba(255,255,255,0.45); margin-bottom: 2rem; }
+    .cta-btns { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--dark);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.75rem;
+      flex-wrap: wrap;
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.28);
+    }
+    footer a { color: rgba(255,255,255,0.45); transition: color 0.15s; }
+    footer a:hover { color: #fff; }
+
+    /* mav mark */
+    .mav-mark { position: fixed; bottom: 12px; right: 14px; opacity: 0.4; line-height: 0; z-index: 50; transition: opacity 0.2s; }
+    .mav-mark:hover { opacity: 1; }
+
+    @media (max-width: 540px) {
+      .nav-links .btn { display: none; }
+      .hero h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav>
+  <a class="nav-brand" href="demo.html">
+    <img src="bingo.png" alt="Webingo">
+    <span>Webingo</span>
+  </a>
+  <div class="nav-links">
+    <a href="https://github.com/gavinhaggis/webingo" target="_blank" rel="noopener">GitHub</a>
+    <a href="index.html" class="btn">Generator</a>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <h1>Bingo for<br><em>anything</em></h1>
+  <p>Paste a word list. Generate N unique shareable cards. The entire card lives in the URL — no account, no server, no expiry.</p>
+  <div class="hero-btns">
+    <a href="index.html" class="btn">Make your cards</a>
+    <a href="https://github.com/gavinhaggis/webingo" target="_blank" rel="noopener" class="btn btn-outline">View on GitHub</a>
+  </div>
+</div>
+
+<!-- ── How it works ── -->
+<div class="section">
+  <div class="inner">
+    <div class="eyebrow">How it works</div>
+    <h2>From word list to bingo in 30 seconds</h2>
+    <p class="sub">No accounts. No setup. The card is the link.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Paste your items</h3>
+        <p>CSV, TSV, or one per line. Or pick a built-in preset — Office, Kitchen Nightmares, Dog Spotting, and more.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Configure</h3>
+        <p>Choose 3×3, 4×4, or 5×5. Toggle a free space. Set win condition from first line to full blackout.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Generate &amp; share</h3>
+        <p>Get N unique card links. Each player gets a different shuffle. Share individually or open the host view.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Play &amp; win</h3>
+        <p>Click cells as you spot items. Win detection is automatic. Download a win image — canvas-rendered, no library.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Live demo ── -->
+<div class="section section-alt">
+  <div class="inner">
+    <div class="eyebrow">Live demo</div>
+    <h2>Office Meeting Bingo</h2>
+    <p class="sub">Three freshly generated cards — unique shuffles, ready to play. Generated in your browser right now.</p>
+    <div class="demo-cards" id="demo-cards">
+      <p style="color:var(--muted);font-size:0.85rem">Generating…</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Presets ── -->
+<div class="section">
+  <div class="inner">
+    <div class="eyebrow">Built-in presets</div>
+    <h2>Ready to play</h2>
+    <p class="sub">Load any preset in one click, or paste your own items for anything custom.</p>
+    <div class="preset-grid" id="preset-grid"></div>
+  </div>
+</div>
+
+<!-- ── Features ── -->
+<div class="section section-dark">
+  <div class="inner">
+    <div class="eyebrow">Features</div>
+    <h2>Everything you need, nothing you don't</h2>
+    <p class="sub">Built for sharing. Runs entirely in the browser.</p>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🔗</div>
+        <h3>The card is the link</h3>
+        <p>Entire card state encoded in the URL hash. No database, no expiry — works forever.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎲</div>
+        <h3>Unique per player</h3>
+        <p>Each link is a different subset and shuffle of your items. No two cards are the same.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">💾</div>
+        <h3>State survives refresh</h3>
+        <p>Click state saved to localStorage keyed by card seed. Reload and your marks are still there.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🏆</div>
+        <h3>Win image export</h3>
+        <p>Canvas-rendered PNG with player name, card seed, and UTC timestamp. Provably yours.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">📋</div>
+        <h3>Host view</h3>
+        <p>One URL to preview and distribute all cards at a glance. Copy or open any card in one click.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⚙️</div>
+        <h3>Configurable wins</h3>
+        <p>Set win condition from first line to full blackout. Works with 3×3, 4×4, and 5×5 grids.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CTA ── -->
+<div class="section section-dark cta">
+  <div class="inner">
+    <h2>Ready to play?</h2>
+    <p>Takes 30 seconds. No account needed.</p>
+    <div class="cta-btns">
+      <a href="index.html" class="btn" style="font-size:1.05rem;padding:0.9rem 2.25rem">Open the generator →</a>
+      <a href="https://github.com/gavinhaggis/webingo" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:1.05rem;padding:0.9rem 2.25rem">Fork on GitHub</a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span>Webingo — everything in the URL</span>
+  <a href="index.html">Generator</a>
+  <a href="host.html">Host view</a>
+  <a href="test.html">Tests</a>
+  <a href="https://github.com/gavinhaggis/webingo" target="_blank" rel="noopener">GitHub</a>
+</footer>
+
+<a class="mav-mark" href="https://github.com/gavinhaggis/webingo" target="_blank" rel="noopener" aria-label="GitHub repo"><svg width="48" height="32" viewBox="0 0 12 8" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated"><rect x="3" y="0" width="8" height="1" fill="#fbf236"/><rect x="0" y="1" width="4" height="1" fill="#fbf236"/><rect x="4" y="1" width="6" height="1" fill="#222034"/><rect x="10" y="1" width="2" height="1" fill="#fbf236"/><rect x="0" y="2" width="1" height="1" fill="#ffce10"/><rect x="1" y="2" width="10" height="1" fill="#222034"/><rect x="11" y="2" width="1" height="1" fill="#fbf236"/><rect x="0" y="3" width="2" height="1" fill="#ffce10"/><rect x="2" y="3" width="3" height="1" fill="#222034"/><rect x="5" y="3" width="1" height="1" fill="#ffce10"/><rect x="6" y="3" width="1" height="1" fill="#fbf236"/><rect x="7" y="3" width="2" height="1" fill="#222034"/><rect x="9" y="3" width="1" height="1" fill="#fbf236"/><rect x="10" y="3" width="1" height="1" fill="#222034"/><rect x="11" y="3" width="1" height="1" fill="#fbf236"/><rect x="1" y="4" width="2" height="1" fill="#ffce10"/><rect x="3" y="4" width="3" height="1" fill="#222034"/><rect x="6" y="4" width="1" height="1" fill="#fbf236"/><rect x="7" y="4" width="2" height="1" fill="#222034"/><rect x="9" y="4" width="1" height="1" fill="#fbf236"/><rect x="10" y="4" width="1" height="1" fill="#222034"/><rect x="11" y="4" width="1" height="1" fill="#fbf236"/><rect x="2" y="5" width="2" height="1" fill="#ffce10"/><rect x="4" y="5" width="7" height="1" fill="#222034"/><rect x="11" y="5" width="1" height="1" fill="#fbf236"/><rect x="3" y="6" width="2" height="1" fill="#ffce10"/><rect x="5" y="6" width="5" height="1" fill="#222034"/><rect x="10" y="6" width="2" height="1" fill="#fbf236"/><rect x="4" y="7" width="7" height="1" fill="#ffce10"/></svg></a>
+
+<script>
+  function encodePayload(obj) {
+    return LZString.compressToBase64(JSON.stringify(obj))
+      .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function nanoid(len = 8) {
+    const c = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += c[Math.floor(Math.random() * c.length)];
+    return s;
+  }
+
+  const OFFICE_ITEMS = ["Let's take this offline","Circle back","Action item","Bandwidth","Synergy","Deep dive","Pivot","Ecosystem","Deliverable","Touch base","Move the needle","Boil the ocean","Low-hanging fruit","Paradigm shift","Blue-sky thinking","Stakeholder buy-in","Agile","KPI","Drill down","Cadence","Alignment","Roadmap","At the end of the day","Leverage","Value add"];
+
+  const PRESETS_META = [
+    { name: "Dog Spotting Bingo",       count: 38, samples: ["Circle zoomies", "Puddle drink", "Stick too big", "A wet dog", "Dog howl"] },
+    { name: "Kitchen Nightmares Bingo", count: 42, samples: ['"Donkey"', '"Muppet"', "Debt > 100k", "Someone is fired", "Menu is huge"] },
+    { name: "Office Meeting Bingo",     count: 25, samples: ["Circle back", "Synergy", "Action item", "Deep dive", "KPI"] },
+    { name: "Movie Night Bingo",        count: 25, samples: ["Jump scare", "Training montage", "Villain monologue", "Post-credits scene", "Slow clap"] },
+    { name: "Tech Conference Bingo",    count: 25, samples: ["AI-powered", "Disruptive", "Scalable", "Unicorn", "Change the world"] },
+    { name: "Road Trip Bingo",          count: 25, samples: ["Wrong turn", "Roadworks", "Are we there yet", "Rain starts", "Cow field"] },
+  ];
+
+  function buildDemoCards() {
+    const base = window.location.href.replace(/[^/]*$/, '');
+    const container = document.getElementById('demo-cards');
+    container.innerHTML = '';
+    const n = 5;
+    let pool = shuffle(OFFICE_ITEMS);
+
+    for (let c = 0; c < 3; c++) {
+      const ipc = n * n - 1;
+      if (pool.length < ipc) pool = [...pool, ...shuffle(OFFICE_ITEMS)];
+      const items = shuffle(pool.splice(0, ipc));
+      const ci = Math.floor((n * n) / 2);
+      items.splice(ci, 0, 'FREE');
+
+      const seed = nanoid(8);
+      const payload = { seed, grid: n, items, freeSpace: true, winCondition: 1, title: 'Office Meeting Bingo' };
+      const url = base + 'card.html#' + encodePayload(payload);
+
+      const card = document.createElement('div');
+      card.className = 'demo-card';
+
+      const seedEl = document.createElement('div');
+      seedEl.className = 'demo-card-seed';
+      seedEl.textContent = 'Card ' + seed;
+      card.appendChild(seedEl);
+
+      const grid = document.createElement('div');
+      grid.className = 'bingo-grid';
+      grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+      for (let i = 0; i < n * n; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'bingo-cell' + (i === ci ? ' free' : '');
+        cell.textContent = i === ci ? 'FREE' : items[i];
+        grid.appendChild(cell);
+      }
+      card.appendChild(grid);
+
+      const link = document.createElement('a');
+      link.className = 'btn';
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'Play this card →';
+      card.appendChild(link);
+
+      container.appendChild(card);
+    }
+  }
+
+  function buildPresets() {
+    const grid = document.getElementById('preset-grid');
+    PRESETS_META.forEach(({ name, count, samples }) => {
+      const tile = document.createElement('div');
+      tile.className = 'preset-tile';
+      tile.innerHTML = `<h3>${name}</h3><div class="count">${count} items</div>
+        <div class="tags">${samples.map(s => `<span class="tag">${s}</span>`).join('')}
+        <span class="tag">+${count - samples.length} more</span></div>`;
+      grid.appendChild(tile);
+    });
+  }
+
+  buildDemoCards();
+  buildPresets();
+</script>
+</body>
+</html>
