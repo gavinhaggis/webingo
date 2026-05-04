@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bingo Host View</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lz-string/libs/lz-string.min.js"></script>
+  <style>
+    :root {
+      --page-bg:   #f3efed;
+      --panel-bg:  #edeae8;
+      --card-bg:   #fff;
+      --border:    #d4ceca;
+      --r-card:    12px;
+      --btn-bg:    #efa551;
+      --btn-hover: #d48a3a;
+      --accent:    #ffd966;
+      --muted:     #7a6f6a;
+      --font:      'Montserrat', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--page-bg); color: #1a1a1a; min-height: 100vh; padding: 2rem 1.5rem; }
+
+    header {
+      max-width: 960px;
+      margin: 0 auto 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    header h1 { font-size: 2rem; font-weight: 800; }
+    header a { font-size: 0.85rem; color: var(--muted); text-decoration: none; }
+    header a:hover { color: #1a1a1a; }
+
+    button {
+      font-family: var(--font);
+      font-size: 0.85rem;
+      background: var(--btn-bg);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: var(--btn-hover); }
+    .btn-sm {
+      background: var(--panel-bg);
+      color: #1a1a1a;
+      border: 1px solid var(--border);
+    }
+    .btn-sm:hover { background: var(--border); }
+
+    /* ── Card grid ── */
+    .card-grid {
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1.25rem;
+    }
+    .card-tile {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r-card);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .card-seed {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .mini-grid-wrap { display: flex; justify-content: center; }
+    .mini-grid { display: grid; gap: 2px; }
+    .mini-cell {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px;
+      overflow: hidden;
+    }
+    .mini-cell span {
+      font-size: 0.36rem;
+      text-align: center;
+      line-height: 1.1;
+      word-break: break-word;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .mini-cell.free-cell { background: rgba(255,217,102,0.3); }
+
+    .tile-actions { display: flex; gap: 0.5rem; }
+    .tile-actions button { flex: 1; font-size: 0.78rem; padding: 0.45rem 0.5rem; }
+
+    /* ── Error state ── */
+    .error-state {
+      max-width: 960px;
+      margin: 5rem auto;
+      text-align: center;
+      color: var(--muted);
+    }
+    .error-state h2 { font-size: 1.2rem; font-weight: 700; color: #1a1a1a; margin-bottom: 0.5rem; }
+    .error-state p { font-size: 0.85rem; }
+    .error-state a { color: var(--btn-bg); text-decoration: none; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1 id="page-title">Bingo Host View</h1>
+  <a href="index.html">&#8592; Generator</a>
+</header>
+
+<div id="error-state" class="error-state" style="display:none">
+  <h2>No host data found</h2>
+  <p>Generate cards from the <a href="index.html">generator</a> and click "Open host view".</p>
+</div>
+
+<div class="card-grid" id="card-grid"></div>
+
+<script>
+  function encodePayload(obj) {
+    return btoa(LZString.compress(JSON.stringify(obj)))
+      .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function decodePayload(hash) {
+    try {
+      const b64 = hash.replace(/-/g,'+').replace(/_/g,'/');
+      return JSON.parse(LZString.decompress(atob(b64)));
+    } catch { return null; }
+  }
+
+  const raw = window.location.hash.slice(1);
+  const hostData = raw ? decodePayload(raw) : null;
+
+  if (!hostData || !Array.isArray(hostData.cards)) {
+    document.getElementById('error-state').style.display = 'block';
+  } else {
+    const title = hostData.title || 'Bingo Host View';
+    document.getElementById('page-title').textContent = title;
+    document.title = title;
+
+    const grid = document.getElementById('card-grid');
+    hostData.cards.forEach(({ seed, url }) => {
+      const cardHash = url.split('#')[1] || '';
+      const cardData = decodePayload(cardHash);
+
+      const tile = document.createElement('div');
+      tile.className = 'card-tile';
+
+      const seedEl = document.createElement('div');
+      seedEl.className = 'card-seed';
+      seedEl.textContent = 'Card ' + seed;
+      tile.appendChild(seedEl);
+
+      if (cardData) {
+        const wrap = document.createElement('div');
+        wrap.className = 'mini-grid-wrap';
+        wrap.appendChild(buildMiniGrid(cardData));
+        tile.appendChild(wrap);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'tile-actions';
+
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'btn-sm';
+      copyBtn.textContent = 'Copy link';
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(url).then(() => {
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => (copyBtn.textContent = 'Copy link'), 1500);
+        });
+      });
+
+      const openBtn = document.createElement('button');
+      openBtn.textContent = 'Open card';
+      openBtn.addEventListener('click', () => window.open(url, '_blank'));
+
+      actions.appendChild(copyBtn);
+      actions.appendChild(openBtn);
+      tile.appendChild(actions);
+      grid.appendChild(tile);
+    });
+  }
+
+  function buildMiniGrid(cardData) {
+    const n = cardData.grid;
+    const px = n === 3 ? 36 : n === 4 ? 30 : 26;
+    const g = document.createElement('div');
+    g.className = 'mini-grid';
+    g.style.gridTemplateColumns = `repeat(${n}, ${px}px)`;
+    const ci = cardData.freeSpace ? Math.floor((n * n) / 2) : -1;
+    for (let i = 0; i < n * n; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'mini-cell' + (i === ci ? ' free-cell' : '');
+      cell.style.cssText = `width:${px}px;height:${px}px`;
+      const span = document.createElement('span');
+      span.textContent = i === ci ? 'FREE' : cardData.items[i];
+      cell.appendChild(span);
+      g.appendChild(cell);
+    }
+    return g;
+  }
+</script>
+</body>
+</html>

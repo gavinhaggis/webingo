@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bingo Card Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lz-string/libs/lz-string.min.js"></script>
+  <style>
+    :root {
+      --page-bg:   #f3efed;
+      --panel-bg:  #edeae8;
+      --card-bg:   #fff;
+      --border:    #d4ceca;
+      --r-card:    12px;
+      --r-input:   6px;
+      --btn-bg:    #efa551;
+      --btn-hover: #d48a3a;
+      --accent:    #ffd966;
+      --muted:     #7a6f6a;
+      --font:      'Montserrat', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--page-bg); color: #1a1a1a; min-height: 100vh; }
+    h1 { font-size: 2rem; font-weight: 800; }
+
+    input, textarea, select {
+      font-family: var(--font);
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: var(--r-input);
+      padding: 0.55rem 0.75rem;
+      background: var(--card-bg);
+      color: #1a1a1a;
+      outline: none;
+      width: 100%;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255,217,102,0.3);
+    }
+    label { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 0.3rem; }
+    .section-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.35rem;
+      margin-bottom: 0.75rem;
+    }
+    button {
+      font-family: var(--font);
+      font-size: 1rem;
+      background: var(--btn-bg);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 0.65rem 1.25rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: var(--btn-hover); }
+    .btn-sm {
+      font-size: 0.8rem;
+      padding: 0.45rem 0.9rem;
+      background: var(--panel-bg);
+      color: #1a1a1a;
+      border: 1px solid var(--border);
+    }
+    .btn-sm:hover { background: var(--border); }
+
+    /* ── Two-column layout ── */
+    .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+
+    /* ── Left panel ── */
+    .left-panel {
+      background: var(--panel-bg);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      overflow-y: auto;
+    }
+    .panel-header p { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .field { display: flex; flex-direction: column; gap: 0.3rem; }
+    textarea#items-input { resize: vertical; min-height: 130px; line-height: 1.5; }
+    .item-count { font-size: 0.72rem; color: var(--muted); text-align: right; }
+
+    /* grid-size segmented control */
+    .seg { display: flex; gap: 4px; }
+    .seg > label { flex: 1; margin: 0; cursor: pointer; }
+    .seg input[type="radio"] { display: none; }
+    .seg .seg-btn {
+      display: block;
+      padding: 0.45rem 0;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: var(--card-bg);
+      text-align: center;
+      transition: background 0.12s, color 0.12s;
+    }
+    .seg input:checked + .seg-btn { background: var(--btn-bg); color: #fff; border-color: var(--btn-bg); }
+
+    /* win-condition */
+    .win-row { display: flex; align-items: center; gap: 0.5rem; }
+    input[type="range"] { accent-color: var(--accent); padding: 0; flex: 1; }
+    .win-label { font-size: 0.75rem; font-weight: 600; min-width: 80px; text-align: right; }
+
+    /* checkbox row */
+    .check-row { display: flex; align-items: center; gap: 0.5rem; }
+    .check-row input[type="checkbox"] { width: auto; accent-color: var(--accent); cursor: pointer; }
+    .check-row label { margin: 0; color: #1a1a1a; cursor: pointer; }
+
+    /* warning */
+    .warn {
+      font-size: 0.73rem;
+      color: #b03030;
+      background: #fde9e7;
+      border: 1px solid #e8b4b0;
+      border-radius: 5px;
+      padding: 0.4rem 0.6rem;
+      line-height: 1.4;
+    }
+
+    /* ── Right panel ── */
+    .right-panel { padding: 2.5rem 2rem; overflow-y: auto; }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      min-height: 380px;
+      color: var(--muted);
+      text-align: center;
+      gap: 0.6rem;
+    }
+    .empty-state-icon { font-size: 3rem; }
+    .empty-state h2 { font-size: 1.1rem; font-weight: 700; color: #1a1a1a; }
+    .empty-state p { font-size: 0.85rem; }
+
+    /* ── Output ── */
+    #output { display: flex; flex-direction: column; gap: 1.5rem; }
+    .output-header h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: 0.75rem; }
+    .output-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+    /* card rows */
+    .card-list { display: flex; flex-direction: column; gap: 1.2rem; }
+    .card-row {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r-card);
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+    .card-info { display: flex; flex-direction: column; gap: 0.5rem; }
+    .card-seed { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+    .url-row { display: flex; gap: 0.5rem; align-items: center; }
+    .url-input { font-size: 0.72rem; padding: 0.4rem 0.6rem; color: var(--muted); flex: 1; }
+    .open-link { font-size: 0.73rem; color: var(--muted); text-decoration: none; }
+    .open-link:hover { color: #1a1a1a; }
+
+    /* mini grid thumbnail */
+    .mini-grid { display: grid; gap: 2px; }
+    .mini-cell {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px;
+      overflow: hidden;
+    }
+    .mini-cell span {
+      font-size: 0.36rem;
+      text-align: center;
+      line-height: 1.1;
+      word-break: break-word;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .mini-cell.free-cell { background: rgba(255,217,102,0.3); }
+
+    @media (max-width: 600px) {
+      .app { grid-template-columns: 1fr; }
+      .left-panel { border-right: none; border-bottom: 1px solid var(--border); }
+      .card-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Left panel ── -->
+  <div class="left-panel">
+    <div class="panel-header">
+      <h1>Bingo</h1>
+      <p>Generate shareable cards</p>
+    </div>
+
+    <div class="field">
+      <div class="section-title">Items</div>
+      <label for="preset-select">Load a preset</label>
+      <select id="preset-select">
+        <option value="">— choose a preset —</option>
+        <option value="office">Office Meeting Bingo</option>
+        <option value="movie">Movie Night Bingo</option>
+        <option value="tech">Tech Conference Bingo</option>
+        <option value="road">Road Trip Bingo</option>
+        <option value="custom">Custom (blank)</option>
+      </select>
+
+      <label for="items-input" style="margin-top:0.6rem">Paste items (CSV, TSV, or one per line)</label>
+      <textarea id="items-input" placeholder="Circle back&#10;Action item&#10;Synergy…"></textarea>
+      <div class="item-count" id="item-count">0 items</div>
+    </div>
+
+    <div class="field">
+      <div class="section-title">Configuration</div>
+      <label>Grid size</label>
+      <div class="seg">
+        <label><input type="radio" name="grid" value="3" id="grid3"><span class="seg-btn">3×3</span></label>
+        <label><input type="radio" name="grid" value="4" id="grid4"><span class="seg-btn">4×4</span></label>
+        <label><input type="radio" name="grid" value="5" id="grid5" checked><span class="seg-btn">5×5</span></label>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="check-row">
+        <input type="checkbox" id="free-space" checked>
+        <label for="free-space">Free space (centre cell)</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Win condition</label>
+      <div class="win-row">
+        <input type="range" id="win-slider" min="1" max="12" value="1">
+        <span class="win-label" id="win-label">First line</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="num-cards">Number of cards</label>
+      <input type="number" id="num-cards" min="1" max="20" value="5">
+      <div id="pool-warn" class="warn" style="display:none"></div>
+    </div>
+
+    <div class="field">
+      <label for="card-title-input">Card set title <span style="color:var(--muted)">(optional)</span></label>
+      <input type="text" id="card-title-input" placeholder="e.g. Game Night — May 2025">
+    </div>
+
+    <button id="generate-btn" style="width:100%;margin-top:auto">Generate Cards</button>
+  </div>
+
+  <!-- ── Right panel ── -->
+  <div class="right-panel">
+    <div id="empty-state" class="empty-state">
+      <div class="empty-state-icon">&#127922;</div>
+      <h2>Ready to generate</h2>
+      <p>Configure your cards on the left and click Generate</p>
+    </div>
+
+    <div id="output" style="display:none">
+      <div class="output-header">
+        <h2 id="output-title">Cards generated</h2>
+        <div class="output-actions">
+          <button id="copy-all-btn" class="btn-sm">Copy all links</button>
+          <button id="host-btn">Open host view &#8594;</button>
+        </div>
+      </div>
+      <div class="card-list" id="card-list"></div>
+    </div>
+  </div>
+
+</div>
+<script>
+  function encodePayload(obj) {
+    return btoa(LZString.compress(JSON.stringify(obj)))
+      .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function decodePayload(hash) {
+    try {
+      const b64 = hash.replace(/-/g,'+').replace(/_/g,'/');
+      return JSON.parse(LZString.decompress(atob(b64)));
+    } catch { return null; }
+  }
+
+  const PRESETS = {
+    office: ["Let's take this offline","Circle back","Action item","Bandwidth","Synergy","Deep dive","Pivot","Ecosystem","Deliverable","Touch base","Move the needle","Boil the ocean","Low-hanging fruit","Paradigm shift","Blue-sky thinking","Stakeholder buy-in","Agile","KPI","Drill down","Cadence","Alignment","Roadmap","At the end of the day","Leverage","Value add"],
+    movie: ["Jump scare","Love interest","Comic relief","Mentor dies","Training montage","Third act breakup","Secret identity","Car chase","Surprise twist","Chosen one","Sidekick saves day","Villain monologue","Post-credits scene","Slow clap","Hero's doubt","Flashback","Damsel rescued","Time pressure","One-liner before kill","Redemption arc","False ending","Reluctant hero","The real villain","Sacrifice","They kiss in the rain"],
+    tech: ["Disruptive","AI-powered","Scalable","Machine learning","The cloud","Blockchain","Move fast","10x engineer","Unicorn","Iterate","Frictionless","Democratise","Hacker","Full stack","Data-driven","Platform","Ecosystem","API-first","Series A","Founder story","Pain point","User journey","We're hiring","Impact","Change the world"],
+    road: ["Petrol station snacks","Wrong turn","Someone needs the toilet","Speed camera","Argument about music","Fog","Roadworks","Rest stop selfie","Nearly missed exit","Unexpected detour","Service station coffee","License plate game","Falling asleep","Phone dies","Are we there yet","Rain starts","Sun visor down","Motorway jam","Radio ad twice","Cow field","Wind farm","Someone's cold","Bridge","Overtaken by a van","Roundabout confusion"]
+  };
+
+  function nanoid(len = 8) {
+    const c = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += c[Math.floor(Math.random() * c.length)];
+    return s;
+  }
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function parseItems(text) {
+    if (!text.trim()) return [];
+    if (text.includes('\t'))
+      return text.split(/[\t\n]+/).map(s => s.trim()).filter(Boolean);
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 1 && lines[0].includes(','))
+      return lines[0].split(',').map(s => s.trim()).filter(Boolean);
+    if (lines.length > 1 && lines.every(l => l.includes(',')))
+      return lines.flatMap(l => l.split(',').map(s => s.trim())).filter(Boolean);
+    return lines;
+  }
+
+  function maxLines(n) { return n + n + 2; }
+  function getGrid() { return parseInt(document.querySelector('input[name="grid"]:checked').value); }
+  function baseUrl() { return window.location.href.replace(/[^/]*$/, ''); }
+
+  // ── Elements ──
+  const itemsInput   = document.getElementById('items-input');
+  const itemCount    = document.getElementById('item-count');
+  const presetSelect = document.getElementById('preset-select');
+  const winSlider    = document.getElementById('win-slider');
+  const winLabelEl   = document.getElementById('win-label');
+  const numCardsEl   = document.getElementById('num-cards');
+  const poolWarn     = document.getElementById('pool-warn');
+
+  function updateWinSlider() {
+    const max = maxLines(getGrid());
+    winSlider.max = max;
+    if (parseInt(winSlider.value) > max) winSlider.value = max;
+    updateWinLabel();
+  }
+  function updateWinLabel() {
+    const max = parseInt(winSlider.max);
+    const v   = parseInt(winSlider.value);
+    winLabelEl.textContent = v === 1 ? 'First line' : v === max ? 'Blackout' : v + ' lines';
+  }
+  function checkPool() {
+    const items = parseItems(itemsInput.value);
+    const n = getGrid();
+    const free = document.getElementById('free-space').checked;
+    const ipc  = n * n - (free ? 1 : 0);
+    const num  = parseInt(numCardsEl.value) || 1;
+    itemCount.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
+    if (items.length < ipc) {
+      poolWarn.style.display = 'block';
+      poolWarn.textContent = `Need at least ${ipc} items for a ${n}×${n} card.`;
+    } else if (items.length < num * ipc) {
+      poolWarn.style.display = 'block';
+      poolWarn.textContent = `${items.length} items — cards will share some items. Need ${num * ipc} for fully unique cards.`;
+    } else {
+      poolWarn.style.display = 'none';
+    }
+  }
+
+  itemsInput.addEventListener('input', checkPool);
+  document.querySelectorAll('input[name="grid"]').forEach(r => r.addEventListener('change', () => { updateWinSlider(); checkPool(); }));
+  document.getElementById('free-space').addEventListener('change', checkPool);
+  numCardsEl.addEventListener('input', checkPool);
+  winSlider.addEventListener('input', updateWinLabel);
+  presetSelect.addEventListener('change', () => {
+    const v = presetSelect.value;
+    if (v && PRESETS[v])   itemsInput.value = PRESETS[v].join('\n');
+    else if (v === 'custom') itemsInput.value = '';
+    checkPool();
+  });
+
+  // ── Generate ──
+  let generatedCards = [];
+
+  document.getElementById('generate-btn').addEventListener('click', () => {
+    const items = parseItems(itemsInput.value);
+    const n    = getGrid();
+    const free = document.getElementById('free-space').checked;
+    const ipc  = n * n - (free ? 1 : 0);
+    const num  = parseInt(numCardsEl.value) || 1;
+    const winCond = parseInt(winSlider.value);
+    const title   = document.getElementById('card-title-input').value.trim();
+
+    if (items.length < ipc) {
+      alert(`Need at least ${ipc} items for a ${n}×${n} card.`);
+      return;
+    }
+
+    const base = baseUrl();
+    generatedCards = [];
+    let pool = shuffle(items);
+
+    for (let i = 0; i < num; i++) {
+      if (pool.length < ipc) pool = [...pool, ...shuffle(items)];
+      const subset = pool.splice(0, ipc);
+      const cardItems = shuffle(subset);
+
+      if (free) {
+        const ci = Math.floor((n * n) / 2);
+        cardItems.splice(ci, 0, 'FREE');
+      }
+
+      const seed = nanoid(8);
+      const payload = { seed, grid: n, items: cardItems, freeSpace: free, winCondition: winCond, title };
+      generatedCards.push({ seed, payload, url: base + 'card.html#' + encodePayload(payload) });
+    }
+
+    renderOutput(title, n);
+  });
+
+  function renderOutput(title, n) {
+    document.getElementById('empty-state').style.display = 'none';
+    const output = document.getElementById('output');
+    output.style.display = 'flex';
+    document.getElementById('output-title').textContent =
+      `${generatedCards.length} card${generatedCards.length !== 1 ? 's' : ''} generated${title ? ' — ' + title : ''}`;
+
+    const list = document.getElementById('card-list');
+    list.innerHTML = '';
+
+    generatedCards.forEach(({ seed, payload, url }) => {
+      const row = document.createElement('div');
+      row.className = 'card-row';
+
+      // Thumbnail
+      const thumb = document.createElement('div');
+      thumb.appendChild(buildMiniGrid(payload, n));
+      row.appendChild(thumb);
+
+      // Info
+      const info = document.createElement('div');
+      info.className = 'card-info';
+
+      const seedEl = document.createElement('div');
+      seedEl.className = 'card-seed';
+      seedEl.textContent = 'Card ' + seed;
+      info.appendChild(seedEl);
+
+      const urlRow = document.createElement('div');
+      urlRow.className = 'url-row';
+      const urlInput = document.createElement('input');
+      urlInput.className = 'url-input';
+      urlInput.type = 'text';
+      urlInput.readOnly = true;
+      urlInput.value = url;
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'btn-sm';
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(url).then(() => {
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => (copyBtn.textContent = 'Copy'), 1500);
+        });
+      });
+      urlRow.appendChild(urlInput);
+      urlRow.appendChild(copyBtn);
+      info.appendChild(urlRow);
+
+      const openLink = document.createElement('a');
+      openLink.className = 'open-link';
+      openLink.href = url;
+      openLink.target = '_blank';
+      openLink.textContent = 'Open card ↗';
+      info.appendChild(openLink);
+
+      row.appendChild(info);
+      list.appendChild(row);
+    });
+
+    document.getElementById('copy-all-btn').onclick = () => {
+      const all = generatedCards.map(c => c.url).join('\n');
+      navigator.clipboard.writeText(all).then(() => {
+        const btn = document.getElementById('copy-all-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => (btn.textContent = 'Copy all links'), 1500);
+      });
+    };
+
+    document.getElementById('host-btn').onclick = () => {
+      const hostPayload = {
+        title: title || 'Bingo Host View',
+        cards: generatedCards.map(c => ({ seed: c.seed, url: c.url }))
+      };
+      window.open(baseUrl() + 'host.html#' + encodePayload(hostPayload), '_blank');
+    };
+  }
+
+  function buildMiniGrid(payload, n) {
+    const px = n === 3 ? 36 : n === 4 ? 30 : 24;
+    const grid = document.createElement('div');
+    grid.className = 'mini-grid';
+    grid.style.gridTemplateColumns = `repeat(${n}, ${px}px)`;
+    const ci = payload.freeSpace ? Math.floor((n * n) / 2) : -1;
+    for (let i = 0; i < n * n; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'mini-cell' + (i === ci ? ' free-cell' : '');
+      cell.style.cssText = `width:${px}px;height:${px}px`;
+      const span = document.createElement('span');
+      span.textContent = i === ci ? 'FREE' : payload.items[i];
+      cell.appendChild(span);
+      grid.appendChild(cell);
+    }
+    return grid;
+  }
+
+  // ── Init ──
+  updateWinSlider();
+  checkPool();
+</script>
+</body>
+</html>

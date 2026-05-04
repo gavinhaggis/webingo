@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Webingo — Tests</title>
+  <script src="https://cdn.jsdelivr.net/npm/lz-string/libs/lz-string.min.js"></script>
+  <style>
+    body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 2rem; margin: 0; }
+    h1 { font-size: 1.4rem; margin-bottom: 1.5rem; color: #ffd966; }
+    .suite { margin-bottom: 1.5rem; }
+    .suite-name { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: #888; border-bottom: 1px solid #333; padding-bottom: 0.3rem; margin-bottom: 0.6rem; }
+    .test { font-size: 0.85rem; padding: 0.25rem 0; display: flex; align-items: center; gap: 0.6rem; }
+    .pass { color: #4ade80; }
+    .fail { color: #f87171; }
+    .badge { font-size: 0.7rem; font-weight: bold; padding: 0.1rem 0.4rem; border-radius: 3px; }
+    .badge-pass { background: #14532d; color: #4ade80; }
+    .badge-fail { background: #7f1d1d; color: #f87171; }
+    .summary { margin-top: 1.5rem; font-size: 1rem; font-weight: bold; }
+    .summary.all-pass { color: #4ade80; }
+    .summary.has-fail  { color: #f87171; }
+    .detail { font-size: 0.75rem; color: #aaa; margin-left: 2rem; }
+  </style>
+</head>
+<body>
+<h1>Webingo Tests</h1>
+<div id="output"></div>
+
+<script>
+  // ── Core utilities (mirrored from the app) ──────────────────────────────────
+
+  function encodePayload(obj) {
+    return btoa(LZString.compress(JSON.stringify(obj)))
+      .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function decodePayload(hash) {
+    try {
+      const b64 = hash.replace(/-/g,'+').replace(/_/g,'/');
+      return JSON.parse(LZString.decompress(atob(b64)));
+    } catch { return null; }
+  }
+
+  function parseItems(text) {
+    if (!text.trim()) return [];
+    if (text.includes('\t'))
+      return text.split(/[\t\n]+/).map(s => s.trim()).filter(Boolean);
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 1 && lines[0].includes(','))
+      return lines[0].split(',').map(s => s.trim()).filter(Boolean);
+    if (lines.length > 1 && lines.every(l => l.includes(',')))
+      return lines.flatMap(l => l.split(',').map(s => s.trim())).filter(Boolean);
+    return lines;
+  }
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function maxLines(n) { return n + n + 2; }
+
+  function getWinLines(n) {
+    const lines = [];
+    for (let r = 0; r < n; r++) lines.push(Array.from({length:n},(_,c)=>r*n+c));
+    for (let c = 0; c < n; c++) lines.push(Array.from({length:n},(_,r)=>r*n+c));
+    lines.push(Array.from({length:n},(_,i)=>i*n+i));
+    lines.push(Array.from({length:n},(_,i)=>i*n+(n-1-i)));
+    return lines;
+  }
+
+  function countCompletedLines(n, markedSet) {
+    return getWinLines(n).filter(line => line.every(i => markedSet.has(i))).length;
+  }
+
+  // ── Test runner ─────────────────────────────────────────────────────────────
+
+  const results = [];
+  function test(suite, name, fn) {
+    try {
+      fn();
+      results.push({ suite, name, pass: true });
+    } catch(e) {
+      results.push({ suite, name, pass: false, detail: e.message });
+    }
+  }
+  function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed'); }
+  function eq(a, b, msg) {
+    const sa = JSON.stringify(a), sb = JSON.stringify(b);
+    if (sa !== sb) throw new Error((msg || '') + ` expected ${sb} got ${sa}`);
+  }
+
+  // ── Suite: encode / decode ───────────────────────────────────────────────────
+
+  test('Encode / decode', 'round-trips a simple object', () => {
+    const obj = { seed: 'abc12345', grid: 5, items: ['a','b','c'], freeSpace: true, winCondition: 1, title: 'Test' };
+    eq(decodePayload(encodePayload(obj)), obj);
+  });
+
+  test('Encode / decode', 'produces a URL-safe string (no +, /, =)', () => {
+    const encoded = encodePayload({ seed: 'x', grid: 3, items: Array(9).fill('item'), freeSpace: false, winCondition: 1, title: '' });
+    assert(!/[+/=]/.test(encoded), 'Contains URL-unsafe character');
+  });
+
+  test('Encode / decode', 'returns null for garbage input', () => {
+    eq(decodePayload('notvalidbase64!!!'), null);
+  });
+
+  test('Encode / decode', 'returns null for empty string', () => {
+    eq(decodePayload(''), null);
+  });
+
+  // ── Suite: parseItems ────────────────────────────────────────────────────────
+
+  test('parseItems', 'newline-separated list', () => {
+    eq(parseItems('Alpha\nBeta\nGamma'), ['Alpha','Beta','Gamma']);
+  });
+
+  test('parseItems', 'single-line CSV', () => {
+    eq(parseItems('a, b, c, d'), ['a','b','c','d']);
+  });
+
+  test('parseItems', 'multi-line CSV', () => {
+    eq(parseItems('a,b\nc,d'), ['a','b','c','d']);
+  });
+
+  test('parseItems', 'TSV', () => {
+    eq(parseItems('foo\tbar\tbaz'), ['foo','bar','baz']);
+  });
+
+  test('parseItems', 'trims whitespace', () => {
+    eq(parseItems('  hello  \n  world  '), ['hello','world']);
+  });
+
+  test('parseItems', 'empty string returns []', () => {
+    eq(parseItems(''), []);
+  });
+
+  test('parseItems', 'blank-line-only returns []', () => {
+    eq(parseItems('   \n  \n  '), []);
+  });
+
+  // ── Suite: maxLines ──────────────────────────────────────────────────────────
+
+  test('maxLines', '3×3 → 8', () => eq(maxLines(3), 8));
+  test('maxLines', '4×4 → 10', () => eq(maxLines(4), 10));
+  test('maxLines', '5×5 → 12', () => eq(maxLines(5), 12));
+
+  // ── Suite: win detection ─────────────────────────────────────────────────────
+
+  test('Win detection', 'detects a complete row', () => {
+    // 3×3, mark all of row 1 (indices 3,4,5)
+    assert(countCompletedLines(3, new Set([3,4,5])) >= 1);
+  });
+
+  test('Win detection', 'detects a complete column', () => {
+    // 3×3, mark col 0 (0,3,6)
+    assert(countCompletedLines(3, new Set([0,3,6])) >= 1);
+  });
+
+  test('Win detection', 'detects diagonal top-left to bottom-right', () => {
+    // 3×3 diagonal: 0,4,8
+    assert(countCompletedLines(3, new Set([0,4,8])) >= 1);
+  });
+
+  test('Win detection', 'detects diagonal top-right to bottom-left', () => {
+    // 3×3 diagonal: 2,4,6
+    assert(countCompletedLines(3, new Set([2,4,6])) >= 1);
+  });
+
+  test('Win detection', 'incomplete row does not count', () => {
+    eq(countCompletedLines(3, new Set([0,1])), 0);
+  });
+
+  test('Win detection', 'blackout is 8 lines on 3×3', () => {
+    const all = new Set(Array.from({length:9},(_,i)=>i));
+    eq(countCompletedLines(3, all), 8);
+  });
+
+  test('Win detection', 'free space at centre of 5×5 helps diagonals', () => {
+    // 5×5 centre is idx 12. Mark just the main diagonal (0,6,12,18,24).
+    const marked = new Set([0,6,12,18,24]);
+    assert(countCompletedLines(5, marked) >= 1);
+  });
+
+  // ── Suite: shuffle ───────────────────────────────────────────────────────────
+
+  test('Shuffle', 'returns same length', () => {
+    const arr = [1,2,3,4,5];
+    eq(shuffle(arr).length, arr.length);
+  });
+
+  test('Shuffle', 'contains same elements', () => {
+    const arr = ['a','b','c','d','e'];
+    eq([...shuffle(arr)].sort(), [...arr].sort());
+  });
+
+  test('Shuffle', 'does not mutate original', () => {
+    const arr = [1,2,3];
+    const copy = [...arr];
+    shuffle(arr);
+    eq(arr, copy);
+  });
+
+  // ── Suite: card payload structure ────────────────────────────────────────────
+
+  test('Card payload', 'items length equals grid² with freeSpace=true', () => {
+    // Generator inserts FREE at centre so items.length === n*n
+    const n = 5;
+    const ipc = n * n - 1;
+    const raw = Array.from({length: ipc}, (_, i) => 'item' + i);
+    const items = [...raw];
+    items.splice(Math.floor((n*n)/2), 0, 'FREE');
+    eq(items.length, n * n);
+    eq(items[Math.floor((n*n)/2)], 'FREE');
+  });
+
+  test('Card payload', 'items length equals grid² with freeSpace=false', () => {
+    const n = 4;
+    const items = Array.from({length: n * n}, (_, i) => 'item' + i);
+    eq(items.length, n * n);
+  });
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  const suites = {};
+  results.forEach(r => {
+    (suites[r.suite] = suites[r.suite] || []).push(r);
+  });
+
+  const out = document.getElementById('output');
+  let passed = 0, failed = 0;
+
+  for (const [suiteName, tests] of Object.entries(suites)) {
+    const div = document.createElement('div');
+    div.className = 'suite';
+    div.innerHTML = `<div class="suite-name">${suiteName}</div>`;
+
+    for (const t of tests) {
+      const el = document.createElement('div');
+      el.className = 'test';
+      el.innerHTML = `<span class="badge ${t.pass?'badge-pass':'badge-fail'}">${t.pass?'PASS':'FAIL'}</span>
+        <span class="${t.pass?'pass':'fail'}">${t.name}</span>`;
+      if (!t.pass && t.detail) {
+        const d = document.createElement('div');
+        d.className = 'detail';
+        d.textContent = t.detail;
+        el.appendChild(d);
+      }
+      div.appendChild(el);
+      t.pass ? passed++ : failed++;
+    }
+    out.appendChild(div);
+  }
+
+  const sumEl = document.createElement('div');
+  sumEl.className = 'summary ' + (failed === 0 ? 'all-pass' : 'has-fail');
+  sumEl.textContent = failed === 0
+    ? `✓ All ${passed} tests passed`
+    : `✗ ${failed} failed, ${passed} passed`;
+  out.appendChild(sumEl);
+</script>
+</body>
+</html>

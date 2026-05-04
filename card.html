@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bingo Card</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lz-string/libs/lz-string.min.js"></script>
+  <style>
+    :root {
+      --bg: #222034;
+      --cell-bg: #2e2b45;
+      --cell-border: #3d3a55;
+      --cell-marked-bg: #efa551;
+      --cell-win-bg: #45004D;
+      --accent: #ffd966;
+      --text: #fff;
+      --muted: rgba(255,255,255,0.5);
+      --btn-bg: #efa551;
+      --btn-hover: #d48a3a;
+      --font: 'Montserrat', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem 1rem;
+    }
+    button {
+      font-family: var(--font);
+      font-size: 1rem;
+      background: var(--btn-bg);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 0.65rem 1.5rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: var(--btn-hover); }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.06); }
+
+    /* ── Name screen (no hash) ── */
+    #name-screen {
+      text-align: center;
+      max-width: 400px;
+      width: 100%;
+    }
+    #name-screen h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.4rem; }
+    #name-screen p { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+    #name-screen input,
+    #name-overlay-box input {
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.07);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 0.85rem;
+      margin-bottom: 0.9rem;
+      outline: none;
+    }
+    #name-screen input:focus,
+    #name-overlay-box input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255,217,102,0.2);
+    }
+    #name-saved-msg { text-align: center; }
+    #name-saved-msg h2 { font-size: 1.4rem; font-weight: 800; margin-bottom: 0.5rem; }
+    #name-saved-msg p { color: var(--muted); font-size: 0.85rem; }
+
+    /* ── Name overlay (hash present, no name) ── */
+    #name-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(34,32,52,0.88);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+    #name-overlay-box {
+      background: #2e2b45;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 2rem;
+      max-width: 360px;
+      width: 90%;
+      text-align: center;
+    }
+    #name-overlay-box h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 0.4rem; }
+    #name-overlay-box p { color: var(--muted); font-size: 0.8rem; margin-bottom: 1rem; }
+    .overlay-btns { display: flex; gap: 0.5rem; justify-content: center; }
+
+    /* ── Card view ── */
+    #card-view {
+      width: 100%;
+      max-width: 560px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    #card-title { font-size: 1.5rem; font-weight: 800; text-align: center; }
+    #card-player { font-size: 0.8rem; color: var(--muted); }
+    #bingo-grid { display: grid; gap: 6px; width: 100%; }
+
+    .cell {
+      background: var(--cell-bg);
+      border: 1px solid var(--cell-border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0.4rem;
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+      transition: background 0.12s;
+    }
+    .cell:hover:not(.free):not(.marked) { background: rgba(255,255,255,0.07); }
+    .cell.free   { cursor: default; background: rgba(255,217,102,0.12); border-color: rgba(255,217,102,0.4); }
+    .cell.marked { background: var(--cell-marked-bg); border-color: #c97f2e; }
+    .cell.win    { background: var(--cell-win-bg) !important; border-color: #7a00a0 !important; }
+
+    .cell-text {
+      font-size: 0.75rem;
+      font-weight: 600;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+    .cell-check {
+      position: absolute;
+      top: 4px; right: 6px;
+      font-size: 1rem;
+      opacity: 0.7;
+    }
+    .cell-ts {
+      position: absolute;
+      bottom: 3px; left: 0; right: 0;
+      font-size: 0.55rem;
+      color: rgba(255,255,255,0.4);
+      text-align: center;
+      letter-spacing: -0.02em;
+    }
+
+    /* ── Win banner ── */
+    #win-banner {
+      position: fixed;
+      inset: 0;
+      background: rgba(34,32,52,0.93);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      text-align: center;
+      padding: 2rem;
+    }
+    #win-banner h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      color: var(--accent);
+      animation: pop 0.55s cubic-bezier(.175,.885,.32,1.275);
+    }
+    #win-banner p { font-size: 0.95rem; color: var(--muted); margin: 0.5rem 0 1.75rem; }
+    .win-btns { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+    #save-win-btn { font-size: 1rem; padding: 0.75rem 2rem; }
+
+    /* ── Confetti ── */
+    .confetti-piece {
+      position: fixed;
+      top: -12px;
+      border-radius: 2px;
+      z-index: 190;
+      pointer-events: none;
+      animation: confetti-fall linear forwards;
+    }
+    @keyframes confetti-fall {
+      0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+    @keyframes pop {
+      0%   { transform: scale(0.4); opacity: 0; }
+      60%  { transform: scale(1.25); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    canvas { display: none; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div id="name-screen" class="hidden">
+  <h1>Bingo</h1>
+  <p>Enter your name to get started</p>
+  <input type="text" id="name-input-main" placeholder="Your name" maxlength="40" autocomplete="name">
+  <button id="name-submit-btn" style="width:100%">Continue</button>
+</div>
+
+<div id="name-saved-msg" class="hidden">
+  <h2>Name saved!</h2>
+  <p>Open a card link to start playing.</p>
+</div>
+
+<div id="name-overlay" class="hidden">
+  <div id="name-overlay-box">
+    <h2>What's your name?</h2>
+    <p>Shown on your card and win image</p>
+    <input type="text" id="name-input-overlay" placeholder="Your name" maxlength="40" autocomplete="name">
+    <div class="overlay-btns">
+      <button id="name-overlay-skip" class="btn-ghost">Skip</button>
+      <button id="name-overlay-submit">Save name</button>
+    </div>
+  </div>
+</div>
+
+<div id="card-view" class="hidden">
+  <div id="card-title"></div>
+  <div id="card-player"></div>
+  <div id="bingo-grid"></div>
+</div>
+
+<div id="win-banner" class="hidden">
+  <h1>BINGO!</h1>
+  <p id="win-msg">You've got a bingo!</p>
+  <div class="win-btns">
+    <button id="save-win-btn">&#128190; Save win image</button>
+    <button id="dismiss-win-btn" class="btn-ghost">Keep playing</button>
+  </div>
+</div>
+
+<canvas id="win-canvas"></canvas>
+
+<script>
+  function encodePayload(obj) {
+    return btoa(LZString.compress(JSON.stringify(obj)))
+      .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function decodePayload(hash) {
+    try {
+      const b64 = hash.replace(/-/g,'+').replace(/_/g,'/');
+      return JSON.parse(LZString.decompress(atob(b64)));
+    } catch { return null; }
+  }
+
+  let cardData = null;
+  let markedState = {};
+  let playerName = localStorage.getItem('bingo_player_name') || '';
+  let wonAlready = false;
+
+  const hash = window.location.hash.slice(1);
+
+  if (!hash) {
+    // No card — show name capture screen
+    document.getElementById('name-screen').classList.remove('hidden');
+    const input = document.getElementById('name-input-main');
+    const btn   = document.getElementById('name-submit-btn');
+
+    function submitName() {
+      const n = input.value.trim();
+      if (!n) { input.focus(); return; }
+      localStorage.setItem('bingo_player_name', n);
+      document.getElementById('name-screen').classList.add('hidden');
+      document.getElementById('name-saved-msg').classList.remove('hidden');
+    }
+    btn.addEventListener('click', submitName);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') submitName(); });
+  } else {
+    cardData = decodePayload(hash);
+    if (!cardData) {
+      document.body.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--muted)">
+        <h2 style="font-size:1.3rem;margin-bottom:.5rem">Invalid card link</h2>
+        <p>This card URL appears to be broken.</p></div>`;
+    } else {
+      loadCard();
+    }
+  }
+
+  function loadCard() {
+    const saved = localStorage.getItem('bingo_state_' + cardData.seed);
+    if (saved) { try { markedState = JSON.parse(saved); } catch {} }
+
+    if (!playerName) {
+      const overlay = document.getElementById('name-overlay');
+      overlay.classList.remove('hidden');
+      const input = document.getElementById('name-input-overlay');
+
+      function saveAndClose() {
+        const n = input.value.trim();
+        if (n) { localStorage.setItem('bingo_player_name', n); playerName = n; }
+        overlay.classList.add('hidden');
+        renderCard();
+      }
+      document.getElementById('name-overlay-submit').addEventListener('click', saveAndClose);
+      document.getElementById('name-overlay-skip').addEventListener('click', () => {
+        overlay.classList.add('hidden');
+        renderCard();
+      });
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') saveAndClose(); });
+      // Render card behind the overlay so it's visible when dismissed
+      renderCard();
+    } else {
+      renderCard();
+    }
+  }
+
+  function renderCard() {
+    const cardView = document.getElementById('card-view');
+    cardView.classList.remove('hidden');
+
+    document.getElementById('card-title').textContent = cardData.title || 'Bingo!';
+    document.title = cardData.title || 'Bingo Card';
+    document.getElementById('card-player').textContent = playerName ? 'Playing as: ' + playerName : '';
+
+    const n = cardData.grid;
+    const grid = document.getElementById('bingo-grid');
+    grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+    grid.innerHTML = '';
+
+    const cellMinH = n === 3 ? 110 : n === 4 ? 90 : 76;
+    const centerIdx = cardData.freeSpace ? Math.floor((n * n) / 2) : -1;
+
+    for (let i = 0; i < n * n; i++) {
+      const isFree = i === centerIdx;
+      const cell = document.createElement('div');
+      cell.className = 'cell' + (isFree ? ' free' : '') + (markedState[i] ? ' marked' : '');
+      cell.style.minHeight = cellMinH + 'px';
+
+      const text = document.createElement('div');
+      text.className = 'cell-text';
+      text.textContent = isFree ? 'FREE' : cardData.items[i];
+      cell.appendChild(text);
+
+      if (markedState[i]) addMarkElements(cell, markedState[i]);
+      if (!isFree) cell.addEventListener('click', () => toggleCell(i));
+      grid.appendChild(cell);
+    }
+
+    checkWin(false);
+  }
+
+  function addMarkElements(cell, ts) {
+    const check = document.createElement('div');
+    check.className = 'cell-check';
+    check.textContent = '✓';
+    cell.appendChild(check);
+
+    const tsEl = document.createElement('div');
+    tsEl.className = 'cell-ts';
+    tsEl.textContent = ts;
+    cell.appendChild(tsEl);
+  }
+
+  function toggleCell(idx) {
+    if (markedState[idx]) {
+      delete markedState[idx];
+    } else {
+      markedState[idx] = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+    }
+    localStorage.setItem('bingo_state_' + cardData.seed, JSON.stringify(markedState));
+
+    const n = cardData.grid;
+    const centerIdx = cardData.freeSpace ? Math.floor((n * n) / 2) : -1;
+    const cells = document.querySelectorAll('#bingo-grid .cell');
+    const cell = cells[idx];
+
+    cell.querySelectorAll('.cell-check, .cell-ts').forEach(el => el.remove());
+    if (markedState[idx]) {
+      cell.classList.add('marked');
+      addMarkElements(cell, markedState[idx]);
+    } else {
+      cell.classList.remove('marked');
+    }
+
+    checkWin(true);
+  }
+
+  function isMarked(idx) {
+    const n = cardData.grid;
+    const centerIdx = cardData.freeSpace ? Math.floor((n * n) / 2) : -1;
+    return idx === centerIdx || !!markedState[idx];
+  }
+
+  function checkWin(triggerBanner) {
+    const n = cardData.grid;
+    const winLines = [];
+
+    for (let r = 0; r < n; r++) {
+      const row = Array.from({length: n}, (_, c) => r * n + c);
+      if (row.every(isMarked)) winLines.push(row);
+    }
+    for (let c = 0; c < n; c++) {
+      const col = Array.from({length: n}, (_, r) => r * n + c);
+      if (col.every(isMarked)) winLines.push(col);
+    }
+    const d1 = Array.from({length: n}, (_, i) => i * n + i);
+    const d2 = Array.from({length: n}, (_, i) => i * n + (n - 1 - i));
+    if (d1.every(isMarked)) winLines.push(d1);
+    if (d2.every(isMarked)) winLines.push(d2);
+
+    const winCells = new Set(winLines.flat());
+    document.querySelectorAll('#bingo-grid .cell').forEach((cell, i) => {
+      cell.classList.toggle('win', winCells.has(i));
+    });
+
+    if (triggerBanner && !wonAlready && winLines.length >= cardData.winCondition) {
+      wonAlready = true;
+      showWinBanner(winLines.length);
+    }
+  }
+
+  function showWinBanner(lineCount) {
+    spawnConfetti();
+    const banner = document.getElementById('win-banner');
+    banner.classList.remove('hidden');
+    document.getElementById('win-msg').textContent =
+      lineCount === 1 ? "You've got a bingo!" : `${lineCount} lines complete!`;
+
+    document.getElementById('dismiss-win-btn').addEventListener('click', () => {
+      banner.classList.add('hidden');
+    });
+    document.getElementById('save-win-btn').addEventListener('click', saveWinImage);
+  }
+
+  function spawnConfetti() {
+    const colors = ['#efa551','#ffd966','#45004D','#ff6b6b','#4ecdc4','#45b7d1','#96ceb4'];
+    for (let i = 0; i < 90; i++) {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.style.cssText = `
+        left:${Math.random()*100}vw;
+        width:${6+Math.random()*8}px;
+        height:${5+Math.random()*9}px;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        animation-duration:${2+Math.random()*3}s;
+        animation-delay:${Math.random()*1.5}s;
+      `;
+      document.body.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+  }
+
+  function saveWinImage() {
+    const n = cardData.grid;
+    const cellPx = 100;
+    const pad = 24;
+    const headerH = 96;
+    const footerH = 36;
+    const W = n * cellPx + pad * 2;
+    const H = headerH + n * cellPx + footerH + pad;
+    const canvas = document.getElementById('win-canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#222034';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = '#ffd966';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(5, 5, W - 10, H - 10);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffd966';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(cardData.title || 'Bingo!', W / 2, 34);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '12px sans-serif';
+    ctx.fillText((playerName || 'Anonymous') + '  ·  Seed: ' + cardData.seed, W / 2, 56);
+
+    const winTs = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+    ctx.fillText('Won: ' + winTs, W / 2, 74);
+
+    const cells = document.querySelectorAll('#bingo-grid .cell');
+    const centerIdx = cardData.freeSpace ? Math.floor((n * n) / 2) : -1;
+
+    for (let i = 0; i < n * n; i++) {
+      const col = i % n;
+      const row = Math.floor(i / n);
+      const x = pad + col * cellPx;
+      const y = headerH + row * cellPx;
+      const isFree = i === centerIdx;
+      const isWin = cells[i] && cells[i].classList.contains('win');
+
+      if (isFree)       ctx.fillStyle = 'rgba(255,217,102,0.18)';
+      else if (isWin)   ctx.fillStyle = '#45004D';
+      else if (isMarked(i)) ctx.fillStyle = '#efa551';
+      else              ctx.fillStyle = '#2e2b45';
+      ctx.fillRect(x, y, cellPx, cellPx);
+
+      ctx.strokeStyle = '#3d3a55';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, cellPx, cellPx);
+
+      const label = isFree ? 'FREE' : cardData.items[i];
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+
+      // Simple word-wrap
+      const words = label.split(' ');
+      const lines = [];
+      let cur = '';
+      for (const w of words) {
+        const test = cur ? cur + ' ' + w : w;
+        if (ctx.measureText(test).width > cellPx - 10 && cur) { lines.push(cur); cur = w; }
+        else cur = test;
+      }
+      if (cur) lines.push(cur);
+
+      const lh = 13;
+      const hasTs = !!markedState[i];
+      let ty = y + cellPx / 2 - ((lines.length - 1) * lh) / 2 + (hasTs ? -8 : 0);
+      for (const ln of lines) { ctx.fillText(ln, x + cellPx / 2, ty); ty += lh; }
+
+      if (markedState[i]) {
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = '7px sans-serif';
+        ctx.fillText(markedState[i], x + cellPx / 2, y + cellPx - 5);
+      }
+      if (isMarked(i) && !isFree) {
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('✓', x + cellPx - 9, y + 14);
+      }
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('webingo', W / 2, H - 10);
+
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `bingo-win-${cardData.seed}-${(playerName || 'anon').replace(/\s+/g,'_')}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    });
+  }
+</script>
+</body>
+</html>
