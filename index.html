@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bingo Card Generator</title>
+  <link rel="icon" href="bingo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/lz-string/libs/lz-string.min.js"></script>
@@ -194,6 +195,10 @@
     }
     .mini-cell.free-cell { background: rgba(255,217,102,0.3); }
 
+    .site-logo { width: 44px; height: 44px; margin-bottom: 0.3rem; display: block; }
+    .mav-mark { position: fixed; bottom: 12px; right: 14px; opacity: 0.4; line-height: 0; z-index: 50; transition: opacity 0.2s; }
+    .mav-mark:hover { opacity: 1; }
+
     @media (max-width: 600px) {
       .app { grid-template-columns: 1fr; }
       .left-panel { border-right: none; border-bottom: 1px solid var(--border); }
@@ -207,6 +212,7 @@
   <!-- ── Left panel ── -->
   <div class="left-panel">
     <div class="panel-header">
+      <img src="bingo.png" class="site-logo" alt="Webingo">
       <h1>Bingo</h1>
       <p>Generate shareable cards</p>
     </div>
@@ -221,6 +227,7 @@
         <option value="tech">Tech Conference Bingo</option>
         <option value="road">Road Trip Bingo</option>
         <option value="gordon">Kitchen Nightmares Bingo</option>
+        <option value="dogs">Dog Spotting Bingo</option>
         <option value="custom">Custom (blank)</option>
       </select>
 
@@ -268,6 +275,8 @@
     <button id="generate-btn" style="width:100%;margin-top:auto">Generate Cards</button>
   </div>
 
+  <div class="mav-mark"><svg width="48" height="32" viewBox="0 0 12 8" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated"><rect x="3" y="0" width="8" height="1" fill="#fbf236"/><rect x="0" y="1" width="4" height="1" fill="#fbf236"/><rect x="4" y="1" width="6" height="1" fill="#222034"/><rect x="10" y="1" width="2" height="1" fill="#fbf236"/><rect x="0" y="2" width="1" height="1" fill="#ffce10"/><rect x="1" y="2" width="10" height="1" fill="#222034"/><rect x="11" y="2" width="1" height="1" fill="#fbf236"/><rect x="0" y="3" width="2" height="1" fill="#ffce10"/><rect x="2" y="3" width="3" height="1" fill="#222034"/><rect x="5" y="3" width="1" height="1" fill="#ffce10"/><rect x="6" y="3" width="1" height="1" fill="#fbf236"/><rect x="7" y="3" width="2" height="1" fill="#222034"/><rect x="9" y="3" width="1" height="1" fill="#fbf236"/><rect x="10" y="3" width="1" height="1" fill="#222034"/><rect x="11" y="3" width="1" height="1" fill="#fbf236"/><rect x="1" y="4" width="2" height="1" fill="#ffce10"/><rect x="3" y="4" width="3" height="1" fill="#222034"/><rect x="6" y="4" width="1" height="1" fill="#fbf236"/><rect x="7" y="4" width="2" height="1" fill="#222034"/><rect x="9" y="4" width="1" height="1" fill="#fbf236"/><rect x="10" y="4" width="1" height="1" fill="#222034"/><rect x="11" y="4" width="1" height="1" fill="#fbf236"/><rect x="2" y="5" width="2" height="1" fill="#ffce10"/><rect x="4" y="5" width="7" height="1" fill="#222034"/><rect x="11" y="5" width="1" height="1" fill="#fbf236"/><rect x="3" y="6" width="2" height="1" fill="#ffce10"/><rect x="5" y="6" width="5" height="1" fill="#222034"/><rect x="10" y="6" width="2" height="1" fill="#fbf236"/><rect x="4" y="7" width="7" height="1" fill="#ffce10"/></svg></div>
+
   <!-- ── Right panel ── -->
   <div class="right-panel">
     <div id="empty-state" class="empty-state">
@@ -306,7 +315,8 @@
     movie: ["Jump scare","Love interest","Comic relief","Mentor dies","Training montage","Third act breakup","Secret identity","Car chase","Surprise twist","Chosen one","Sidekick saves day","Villain monologue","Post-credits scene","Slow clap","Hero's doubt","Flashback","Damsel rescued","Time pressure","One-liner before kill","Redemption arc","False ending","Reluctant hero","The real villain","Sacrifice","They kiss in the rain"],
     tech: ["Disruptive","AI-powered","Scalable","Machine learning","The cloud","Blockchain","Move fast","10x engineer","Unicorn","Iterate","Frictionless","Democratise","Hacker","Full stack","Data-driven","Platform","Ecosystem","API-first","Series A","Founder story","Pain point","User journey","We're hiring","Impact","Change the world"],
     road: ["Petrol station snacks","Wrong turn","Someone needs the toilet","Speed camera","Argument about music","Fog","Roadworks","Rest stop selfie","Nearly missed exit","Unexpected detour","Service station coffee","License plate game","Falling asleep","Phone dies","Are we there yet","Rain starts","Sun visor down","Motorway jam","Radio ad twice","Cow field","Wind farm","Someone's cold","Bridge","Overtaken by a van","Roundabout confusion"],
-    gordon: ["Family needs therapy","Chef isn't a chef","Debt > 100k","Someone confuses fresh and frozen","Inappropriate alcohol consumption","Gordon has 3 overly energetic pieces to camera",'"Donkey"','"Muppet"','"That\'s just your opinion"',"The theme of the restaurant doesn't match the owners","Waitress excited to talk down the restaurant","Two people crying in the same shot","Bar makes more money than the food","Equipment is straight up broken","Someone is fired","Gordon throws up (or fakes it)",'"It\'s an American version"',"They have to use subtitles for an accent","Needless local celebrity","People wait over 1 hour for food","A chef actively fucks with Gordon",'"Plonker"',"Gordon says some pun","Inappropriate clothing","Inappropriate roles","Gordon literally bullies someone","Chef says \"Chill out\"",'"Big boy"',"The episode's narrative makes no sense",'"I\'m going to do better" and doesn\'t',"One person cries twice","Menu is huge","Ridiculous live entertainment shows up","Gordon claps for some reason","Three people cry","Gordon doesn't like their food","2 of the workers are married","Owner has literally no restaurant experience","The \"makeover\" is just paint and chairs","Something is deep fried that definitely shouldn't be",'"It\'s clean" despite being shown otherwise',"Gordon brings in a competent chef"]
+    gordon: ["Family needs therapy","Chef isn't a chef","Debt > 100k","Someone confuses fresh and frozen","Inappropriate alcohol consumption","Gordon has 3 overly energetic pieces to camera",'"Donkey"','"Muppet"','"That\'s just your opinion"',"The theme of the restaurant doesn't match the owners","Waitress excited to talk down the restaurant","Two people crying in the same shot","Bar makes more money than the food","Equipment is straight up broken","Someone is fired","Gordon throws up (or fakes it)",'"It\'s an American version"',"They have to use subtitles for an accent","Needless local celebrity","People wait over 1 hour for food","A chef actively fucks with Gordon",'"Plonker"',"Gordon says some pun","Inappropriate clothing","Inappropriate roles","Gordon literally bullies someone","Chef says \"Chill out\"",'"Big boy"',"The episode's narrative makes no sense",'"I\'m going to do better" and doesn\'t',"One person cries twice","Menu is huge","Ridiculous live entertainment shows up","Gordon claps for some reason","Three people cry","Gordon doesn't like their food","2 of the workers are married","Owner has literally no restaurant experience","The \"makeover\" is just paint and chairs","Something is deep fried that definitely shouldn't be",'"It\'s clean" despite being shown otherwise',"Gordon brings in a competent chef"],
+    dogs: ["A person clearly being walked by their dog","Circle zoomies","Dog and owner dressed for completely different weather","Dog digging intensely","Dog distance stare down with other dog","Dog gets stranger's food","Dog howl","Dog ignoring owner","Dog jumping up on someone","Dog loses a ball","Dog meets an animal","Dog poses for a photo","Dog refuses to drop something","Dog refusing to leave","Dog rolling","Dog ruins a photo","Dog sitting on a person","Dog successfully catches something","Dog tangled in its own lead","Dog walking its owner","Dog wearing clothes","Dog with a fancy haircut","Dog with uneven ears","Huge dog scared of a tiny dog","Puddle drink","Puppy meets puppy","Same breed meet","Tiny dog barking at a huge dog","Very old dog taking its time","A wet dog","Stick too big","Two dogs of the same breed in different colours","Dog being carried","Cat being walked","Dog lead + child + coffee","Two dogs on one lead","Dog and walker with opposing vibe","Dog and walker with identical vibe"]
   };
 
   function nanoid(len = 8) {

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bingo Host View</title>
+  <link rel="icon" href="bingo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/lz-string/libs/lz-string.min.js"></script>
@@ -116,12 +117,17 @@
     .error-state h2 { font-size: 1.2rem; font-weight: 700; color: #1a1a1a; margin-bottom: 0.5rem; }
     .error-state p { font-size: 0.85rem; }
     .error-state a { color: var(--btn-bg); text-decoration: none; font-weight: 600; }
+    .mav-mark { position: fixed; bottom: 12px; right: 14px; opacity: 0.4; line-height: 0; z-index: 50; transition: opacity 0.2s; }
+    .mav-mark:hover { opacity: 1; }
   </style>
 </head>
 <body>
 
 <header>
-  <h1 id="page-title">Bingo Host View</h1>
+  <div style="display:flex;align-items:center;gap:0.75rem">
+    <img src="bingo.png" style="width:38px;height:38px" alt="Webingo">
+    <h1 id="page-title">Bingo Host View</h1>
+  </div>
   <a href="index.html">&#8592; Generator</a>
 </header>
 
@@ -131,6 +137,8 @@
 </div>
 
 <div class="card-grid" id="card-grid"></div>
+
+<div class="mav-mark"><svg width="48" height="32" viewBox="0 0 12 8" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated"><rect x="3" y="0" width="8" height="1" fill="#fbf236"/><rect x="0" y="1" width="4" height="1" fill="#fbf236"/><rect x="4" y="1" width="6" height="1" fill="#222034"/><rect x="10" y="1" width="2" height="1" fill="#fbf236"/><rect x="0" y="2" width="1" height="1" fill="#ffce10"/><rect x="1" y="2" width="10" height="1" fill="#222034"/><rect x="11" y="2" width="1" height="1" fill="#fbf236"/><rect x="0" y="3" width="2" height="1" fill="#ffce10"/><rect x="2" y="3" width="3" height="1" fill="#222034"/><rect x="5" y="3" width="1" height="1" fill="#ffce10"/><rect x="6" y="3" width="1" height="1" fill="#fbf236"/><rect x="7" y="3" width="2" height="1" fill="#222034"/><rect x="9" y="3" width="1" height="1" fill="#fbf236"/><rect x="10" y="3" width="1" height="1" fill="#222034"/><rect x="11" y="3" width="1" height="1" fill="#fbf236"/><rect x="1" y="4" width="2" height="1" fill="#ffce10"/><rect x="3" y="4" width="3" height="1" fill="#222034"/><rect x="6" y="4" width="1" height="1" fill="#fbf236"/><rect x="7" y="4" width="2" height="1" fill="#222034"/><rect x="9" y="4" width="1" height="1" fill="#fbf236"/><rect x="10" y="4" width="1" height="1" fill="#222034"/><rect x="11" y="4" width="1" height="1" fill="#fbf236"/><rect x="2" y="5" width="2" height="1" fill="#ffce10"/><rect x="4" y="5" width="7" height="1" fill="#222034"/><rect x="11" y="5" width="1" height="1" fill="#fbf236"/><rect x="3" y="6" width="2" height="1" fill="#ffce10"/><rect x="5" y="6" width="5" height="1" fill="#222034"/><rect x="10" y="6" width="2" height="1" fill="#fbf236"/><rect x="4" y="7" width="7" height="1" fill="#ffce10"/></svg></div>
 
 <script>
   function encodePayload(obj) {
