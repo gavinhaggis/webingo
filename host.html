@@ -134,13 +134,13 @@
 
 <script>
   function encodePayload(obj) {
-    return btoa(LZString.compress(JSON.stringify(obj)))
+    return LZString.compressToBase64(JSON.stringify(obj))
       .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   }
   function decodePayload(hash) {
     try {
       const b64 = hash.replace(/-/g,'+').replace(/_/g,'/');
-      return JSON.parse(LZString.decompress(atob(b64)));
+      return JSON.parse(LZString.decompressFromBase64(b64));
     } catch { return null; }
   }
 
