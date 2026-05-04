@@ -205,6 +205,63 @@
     eq(arr, copy);
   });
 
+  // ── Suite: card generation uniqueness ───────────────────────────────────────
+
+  function generateCards(items, n, freeSpace, numCards) {
+    const ipc = n * n - (freeSpace ? 1 : 0);
+    let pool = shuffle(items);
+    const cards = [];
+    for (let i = 0; i < numCards; i++) {
+      if (pool.length < ipc) {
+        const inPool = new Set(pool);
+        const fresh  = shuffle(items.filter(x => !inPool.has(x)));
+        pool = [...pool, ...fresh];
+        if (pool.length < ipc) pool = [...pool, ...shuffle(items)];
+      }
+      const subset = pool.splice(0, ipc);
+      const cardItems = shuffle(subset);
+      if (freeSpace) cardItems.splice(Math.floor((n*n)/2), 0, 'FREE');
+      cards.push(cardItems);
+    }
+    return cards;
+  }
+
+  test('Card uniqueness', 'no duplicate items on a single card (exact pool)', () => {
+    const items = Array.from({length: 25}, (_, i) => 'item' + i);
+    const cards = generateCards(items, 5, false, 1);
+    const seen = new Set(cards[0]);
+    eq(seen.size, 25, 'card has duplicates');
+  });
+
+  test('Card uniqueness', 'no duplicate items when pool replenishes (30 items, 3 cards, 5×5 free)', () => {
+    const items = Array.from({length: 30}, (_, i) => 'item' + i);
+    const cards = generateCards(items, 5, true, 3); // ipc=24, pool=30 → replenishes on card 2
+    for (let c = 0; c < cards.length; c++) {
+      const nonFree = cards[c].filter(x => x !== 'FREE');
+      const seen = new Set(nonFree);
+      assert(seen.size === nonFree.length, `card ${c} has duplicate items`);
+    }
+  });
+
+  test('Card uniqueness', 'no duplicate items across 5 cards with tight pool (26 items, 5×5 free)', () => {
+    const items = Array.from({length: 26}, (_, i) => 'item' + i);
+    const cards = generateCards(items, 5, true, 5);
+    for (let c = 0; c < cards.length; c++) {
+      const nonFree = cards[c].filter(x => x !== 'FREE');
+      const seen = new Set(nonFree);
+      assert(seen.size === nonFree.length, `card ${c} has duplicate items`);
+    }
+  });
+
+  test('Card uniqueness', 'FREE appears exactly once when freeSpace=true', () => {
+    const items = Array.from({length: 25}, (_, i) => 'item' + i);
+    const cards = generateCards(items, 5, true, 3);
+    for (let c = 0; c < cards.length; c++) {
+      const freeCount = cards[c].filter(x => x === 'FREE').length;
+      eq(freeCount, 1, `card ${c} has ${freeCount} FREE cells`);
+    }
+  });
+
   // ── Suite: card payload structure ────────────────────────────────────────────
 
   test('Card payload', 'items length equals grid² with freeSpace=true', () => {

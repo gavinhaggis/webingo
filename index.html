@@ -222,12 +222,12 @@
       <label for="preset-select">Load a preset</label>
       <select id="preset-select">
         <option value="">— choose a preset —</option>
+        <option value="dogs">Dog Spotting Bingo</option>
+        <option value="gordon">Kitchen Nightmares Bingo</option>
         <option value="office">Office Meeting Bingo</option>
         <option value="movie">Movie Night Bingo</option>
         <option value="tech">Tech Conference Bingo</option>
         <option value="road">Road Trip Bingo</option>
-        <option value="gordon">Kitchen Nightmares Bingo</option>
-        <option value="dogs">Dog Spotting Bingo</option>
         <option value="custom">Custom (blank)</option>
       </select>
 
@@ -423,7 +423,12 @@
     let pool = shuffle(items);
 
     for (let i = 0; i < num; i++) {
-      if (pool.length < ipc) pool = [...pool, ...shuffle(items)];
+      if (pool.length < ipc) {
+        const inPool = new Set(pool);
+        const fresh  = shuffle(items.filter(x => !inPool.has(x)));
+        pool = [...pool, ...fresh];
+        if (pool.length < ipc) pool = [...pool, ...shuffle(items)];
+      }
       const subset = pool.splice(0, ipc);
       const cardItems = shuffle(subset);
 

@@ -87,7 +87,7 @@ Then add a matching entry to `PRESETS_META` in `demo.html` to include it in the 
 | Styling | Vanilla CSS with custom properties |
 | Framework | None — plain HTML / CSS / JS |
 
-> **Encoding note:** payloads use `LZString.compressToBase64()` + URL-safe base64. A common mistake is using `btoa(LZString.compress(...))` — this throws `InvalidCharacterError` because `LZString.compress()` outputs characters outside Latin-1. See `CLAUDE.md` for the full explanation.
+> **Encoding note:** payloads use `LZString.compressToBase64()` + URL-safe base64. A common mistake is using `btoa(LZString.compress(...))` — this throws `InvalidCharacterError` because `LZString.compress()` outputs characters outside Latin-1.
 
 ---
 
