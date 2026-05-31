@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bingo Lobby</title>
+  <link rel="icon" href="bingo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lz-string/libs/lz-string.min.js"></script>
+  <style>
+    :root {
+      --page-bg:   #f3efed;
+      --panel-bg:  #edeae8;
+      --card-bg:   #fff;
+      --border:    #d4ceca;
+      --r-card:    12px;
+      --btn-bg:    #efa551;
+      --btn-hover: #d48a3a;
+      --accent:    #ffd966;
+      --muted:     #7a6f6a;
+      --dark:      #222034;
+      --font:      'Montserrat', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--page-bg); color: #1a1a1a; min-height: 100vh; }
+
+    button {
+      font-family: var(--font);
+      font-size: 1rem;
+      background: var(--btn-bg);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 0.65rem 1.4rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.12s;
+    }
+    button:hover { background: var(--btn-hover); }
+    input {
+      font-family: var(--font);
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.65rem 0.9rem;
+      background: var(--card-bg);
+      color: #1a1a1a;
+      outline: none;
+      width: 100%;
+    }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,217,102,0.3); }
+
+    /* ── Header ── */
+    header {
+      background: var(--dark);
+      padding: 1.5rem 1.5rem 2rem;
+      text-align: center;
+      color: #fff;
+    }
+    .header-logo { width: 44px; height: 44px; margin: 0 auto 0.75rem; display: block; }
+    header h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.3rem; }
+    header p { font-size: 0.9rem; color: rgba(255,255,255,0.5); }
+    #lobby-title { color: var(--accent); }
+
+    /* ── Name bar ── */
+    .name-bar {
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .name-bar label { font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+    .name-bar input { max-width: 260px; }
+
+    /* ── Card grid ── */
+    .lobby-grid {
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1.5rem 3rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1.1rem;
+    }
+
+    .lobby-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r-card);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .lobby-card:not(.taken):hover {
+      border-color: var(--btn-bg);
+      box-shadow: 0 2px 12px rgba(239,165,81,0.18);
+    }
+    .lobby-card.taken {
+      opacity: 0.55;
+    }
+
+    .lobby-card-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .lobby-card.named .lobby-card-label { display: none; }
+    .lobby-card-name {
+      display: none;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #1a1a1a;
+      text-align: center;
+      width: 100%;
+    }
+    .lobby-card.named .lobby-card-name { display: block; }
+    .lobby-card.named { border-color: rgba(255,217,102,0.6); background: rgba(255,217,102,0.05); }
+    .lobby-card.named:not(.taken):hover { border-color: var(--btn-bg); box-shadow: 0 2px 14px rgba(239,165,81,0.22); }
+    .lobby-card.taken .lobby-card-label { color: #c0392b; }
+
+    /* mini bingo grid */
+    .mini-grid { display: grid; gap: 2px; }
+    .mini-cell {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px;
+      overflow: hidden;
+    }
+    .mini-cell span {
+      font-size: 0.34rem;
+      text-align: center;
+      line-height: 1.1;
+      word-break: break-word;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .mini-cell.free-cell { background: rgba(255,217,102,0.3); }
+
+    .claim-btn { width: 100%; font-size: 0.88rem; padding: 0.55rem 1rem; }
+    .taken-badge {
+      width: 100%;
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #c0392b;
+      padding: 0.5rem;
+      background: #fde9e7;
+      border-radius: 5px;
+    }
+
+    /* ── Error ── */
+    .error-state {
+      max-width: 520px;
+      margin: 5rem auto;
+      text-align: center;
+      padding: 0 1.5rem;
+      color: var(--muted);
+    }
+    .error-state h2 { font-size: 1.2rem; font-weight: 700; color: #1a1a1a; margin-bottom: 0.5rem; }
+    .error-state p { font-size: 0.88rem; margin-bottom: 1.25rem; }
+    .error-state a { color: var(--btn-bg); text-decoration: none; font-weight: 600; }
+
+    /* mav mark */
+    .mav-mark { position: fixed; bottom: 12px; right: 14px; opacity: 0.4; line-height: 0; z-index: 50; transition: opacity 0.2s; }
+    .mav-mark:hover { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div id="error-state" class="error-state" style="display:none">
+  <h2>No lobby data found</h2>
+  <p>This link appears to be broken or incomplete. Ask the host to regenerate and share a new lobby link.</p>
+  <a href="index.html">← Go to generator</a>
+</div>
+
+<div id="lobby-ui" style="display:none">
+  <header>
+    <img src="bingo.png" class="header-logo" alt="Webingo">
+    <h1><span id="lobby-title">Bingo</span></h1>
+    <p id="lobby-subtitle">Pick a card below to start playing</p>
+  </header>
+
+  <div class="name-bar" id="name-bar">
+    <label for="player-name-input">Your name:</label>
+    <input type="text" id="player-name-input" placeholder="Enter your name" maxlength="40" autocomplete="name">
+  </div>
+
+  <div class="lobby-grid" id="lobby-grid"></div>
+</div>
+
+<a class="mav-mark" href="https://github.com/gavinhaggis/webingo" target="_blank" rel="noopener" aria-label="GitHub repo"><svg width="48" height="32" viewBox="0 0 12 8" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated"><rect x="3" y="0" width="8" height="1" fill="#fbf236"/><rect x="0" y="1" width="4" height="1" fill="#fbf236"/><rect x="4" y="1" width="6" height="1" fill="#222034"/><rect x="10" y="1" width="2" height="1" fill="#fbf236"/><rect x="0" y="2" width="1" height="1" fill="#ffce10"/><rect x="1" y="2" width="10" height="1" fill="#222034"/><rect x="11" y="2" width="1" height="1" fill="#fbf236"/><rect x="0" y="3" width="2" height="1" fill="#ffce10"/><rect x="2" y="3" width="3" height="1" fill="#222034"/><rect x="5" y="3" width="1" height="1" fill="#ffce10"/><rect x="6" y="3" width="1" height="1" fill="#fbf236"/><rect x="7" y="3" width="2" height="1" fill="#222034"/><rect x="9" y="3" width="1" height="1" fill="#fbf236"/><rect x="10" y="3" width="1" height="1" fill="#222034"/><rect x="11" y="3" width="1" height="1" fill="#fbf236"/><rect x="1" y="4" width="2" height="1" fill="#ffce10"/><rect x="3" y="4" width="3" height="1" fill="#222034"/><rect x="6" y="4" width="1" height="1" fill="#fbf236"/><rect x="7" y="4" width="2" height="1" fill="#222034"/><rect x="9" y="4" width="1" height="1" fill="#fbf236"/><rect x="10" y="4" width="1" height="1" fill="#222034"/><rect x="11" y="4" width="1" height="1" fill="#fbf236"/><rect x="2" y="5" width="2" height="1" fill="#ffce10"/><rect x="4" y="5" width="7" height="1" fill="#222034"/><rect x="11" y="5" width="1" height="1" fill="#fbf236"/><rect x="3" y="6" width="2" height="1" fill="#ffce10"/><rect x="5" y="6" width="5" height="1" fill="#222034"/><rect x="10" y="6" width="2" height="1" fill="#fbf236"/><rect x="4" y="7" width="7" height="1" fill="#ffce10"/></svg></a>
+
+<script>
+  function encodePayload(obj) {
+    return LZString.compressToBase64(JSON.stringify(obj))
+      .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function decodePayload(hash) {
+    try {
+      const b64 = hash.replace(/-/g,'+').replace(/_/g,'/');
+      return JSON.parse(LZString.decompressFromBase64(b64));
+    } catch { return null; }
+  }
+
+  // Claimed cards stored per lobby seed to avoid cross-game leakage
+  function lobbyKey(title) { return 'webingo_lobby_' + btoa(title).slice(0, 16); }
+  function getClaimed(key) { try { return JSON.parse(localStorage.getItem(key)) || {}; } catch { return {}; } }
+  function setClaimed(key, obj) { localStorage.setItem(key, JSON.stringify(obj)); }
+
+  const raw = window.location.hash.slice(1);
+  const hostData = raw ? decodePayload(raw) : null;
+
+  if (!hostData || !Array.isArray(hostData.cards)) {
+    document.getElementById('error-state').style.display = 'block';
+  } else {
+    document.getElementById('lobby-ui').style.display = 'block';
+    const setTitle = hostData.title || 'Bingo Lobby';
+    document.title = setTitle;
+    document.getElementById('lobby-title').textContent = setTitle;
+
+    // Decode all card payloads upfront
+    const cards = hostData.cards.map(({ seed, url }) => {
+      const hash = url.split('#')[1] || '';
+      return { seed, url, cardData: decodePayload(hash) };
+    });
+
+    // A card is "named" when the host gave it a personal title different from the set title
+    const isNamed = c => c.cardData && c.cardData.title && c.cardData.title !== setTitle;
+    const hasNamed   = cards.some(isNamed);
+    const hasUnnamed = cards.some(c => !isNamed(c));
+
+    // Adjust header and name bar visibility
+    document.getElementById('lobby-subtitle').textContent = hasNamed && !hasUnnamed
+      ? 'Find your name and tap your card'
+      : hasUnnamed && !hasNamed
+        ? 'Enter your name, then pick a card'
+        : 'Named cards — just tap yours. For the others, enter your name first.';
+    if (!hasUnnamed) document.getElementById('name-bar').style.display = 'none';
+
+    const nameInput = document.getElementById('player-name-input');
+    nameInput.value = localStorage.getItem('bingo_player_name') || '';
+    nameInput.addEventListener('input', () => {
+      if (nameInput.value.trim()) localStorage.setItem('bingo_player_name', nameInput.value.trim());
+    });
+
+    const claimKey = lobbyKey(setTitle + cards.length);
+    const claimed  = getClaimed(claimKey);
+    const grid     = document.getElementById('lobby-grid');
+
+    cards.forEach(({ seed, url, cardData }) => {
+      const named   = isNamed({ cardData });
+      const isTaken = !!claimed[seed];
+
+      const tile = document.createElement('div');
+      tile.className = 'lobby-card' + (named ? ' named' : '') + (isTaken ? ' taken' : '');
+
+      // Unnamed label (shows when not named)
+      const label = document.createElement('div');
+      label.className = 'lobby-card-label';
+      label.textContent = isTaken ? `Taken by ${claimed[seed]}` : 'Card ' + seed;
+      tile.appendChild(label);
+
+      // Named badge (shows when named)
+      const nameBadge = document.createElement('div');
+      nameBadge.className = 'lobby-card-name';
+      nameBadge.textContent = isTaken ? `${cardData.title}` : cardData ? cardData.title : '';
+      tile.appendChild(nameBadge);
+
+      // Mini grid preview
+      if (cardData) {
+        const n  = cardData.grid;
+        const px = n === 3 ? 40 : n === 4 ? 32 : 26;
+        const mg = document.createElement('div');
+        mg.className = 'mini-grid';
+        mg.style.gridTemplateColumns = `repeat(${n}, ${px}px)`;
+        const ci = cardData.freeSpace ? Math.floor((n * n) / 2) : -1;
+        for (let i = 0; i < n * n; i++) {
+          const cell = document.createElement('div');
+          cell.className = 'mini-cell' + (i === ci ? ' free-cell' : '');
+          cell.style.cssText = `width:${px}px;height:${px}px`;
+          const span = document.createElement('span');
+          span.textContent = i === ci ? 'FREE' : cardData.items[i];
+          cell.appendChild(span);
+          mg.appendChild(cell);
+        }
+        tile.appendChild(mg);
+      }
+
+      if (isTaken) {
+        const badge = document.createElement('div');
+        badge.className = 'taken-badge';
+        badge.textContent = '✓ Taken';
+        tile.appendChild(badge);
+      } else {
+        const btn = document.createElement('button');
+        btn.className = 'claim-btn';
+        btn.textContent = named ? 'This is my card →' : 'Pick this card →';
+
+        btn.addEventListener('click', () => {
+          let playerName;
+
+          if (named) {
+            // Named card: the title IS the player identity — no input needed
+            playerName = cardData.title;
+          } else {
+            // Unnamed card: require name entry
+            playerName = nameInput.value.trim();
+            if (!playerName) {
+              nameInput.focus();
+              nameInput.style.borderColor = '#e74c3c';
+              setTimeout(() => (nameInput.style.borderColor = ''), 1200);
+              return;
+            }
+          }
+
+          claimed[seed] = playerName;
+          setClaimed(claimKey, claimed);
+          localStorage.setItem('bingo_player_name', playerName);
+
+          const personalPayload = { ...(cardData || {}), playerName };
+          const personalUrl = url.replace(/#.*$/, '') + '#' + encodePayload(personalPayload);
+          window.location.href = personalUrl;
+        });
+
+        tile.appendChild(btn);
+      }
+
+      grid.appendChild(tile);
+    });
+  }
+</script>
+</body>
+</html>

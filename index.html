@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/lz-string/libs/lz-string.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
   <style>
     :root {
       --page-bg:   #f3efed;
@@ -160,12 +161,25 @@
       border-radius: var(--r-card);
       padding: 1rem;
       display: grid;
-      grid-template-columns: auto 1fr;
+      grid-template-columns: auto 1fr auto;
       gap: 1rem;
       align-items: start;
     }
+    .card-qr { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+    .card-qr canvas, .card-qr img { border-radius: 4px; border: 1px solid var(--border); }
+    .card-qr span { font-size: 0.6rem; color: var(--muted); }
     .card-info { display: flex; flex-direction: column; gap: 0.5rem; }
     .card-seed { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+    .card-name-input {
+      font-size: 0.78rem;
+      padding: 0.35rem 0.6rem;
+      border: 1px dashed var(--border);
+      background: transparent;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    .card-name-input:focus { border-style: solid; border-color: var(--accent); background: var(--card-bg); }
+    .card-name-input::placeholder { font-weight: 400; color: var(--muted); }
     .url-row { display: flex; gap: 0.5rem; align-items: center; }
     .url-input { font-size: 0.72rem; padding: 0.4rem 0.6rem; color: var(--muted); flex: 1; }
     .open-link { font-size: 0.73rem; color: var(--muted); text-decoration: none; }
@@ -196,13 +210,28 @@
     .mini-cell.free-cell { background: rgba(255,217,102,0.3); }
 
     .site-logo { width: 44px; height: 44px; margin-bottom: 0.3rem; display: block; }
+    .recent-row {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .recent-row-meta { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+    .recent-row-title { font-size: 0.82rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .recent-row-sub { font-size: 0.7rem; color: var(--muted); }
+    .recent-row-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
     .mav-mark { position: fixed; bottom: 12px; right: 14px; opacity: 0.4; line-height: 0; z-index: 50; transition: opacity 0.2s; }
     .mav-mark:hover { opacity: 1; }
 
     @media (max-width: 600px) {
       .app { grid-template-columns: 1fr; }
       .left-panel { border-right: none; border-bottom: 1px solid var(--border); }
-      .card-row { grid-template-columns: 1fr; }
+      .card-row { grid-template-columns: auto 1fr; }
+      .card-qr { display: none; }
     }
   </style>
 </head>
@@ -286,14 +315,24 @@
     </div>
 
     <div id="output" style="display:none">
+      <div id="extend-banner" style="display:none;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.5rem 0.75rem;background:rgba(255,217,102,0.18);border:1px solid var(--accent);border-radius:6px;font-size:0.8rem;margin-bottom:0.75rem">
+        <span>Adding cards to: <strong id="extend-label"></strong></span>
+        <button id="extend-clear-btn" class="btn-sm" style="font-size:0.72rem;padding:0.25rem 0.6rem">Start fresh ✕</button>
+      </div>
       <div class="output-header">
         <h2 id="output-title">Cards generated</h2>
         <div class="output-actions">
           <button id="copy-all-btn" class="btn-sm">Copy all links</button>
+          <button id="lobby-btn" class="btn-sm">Open lobby &#8594;</button>
           <button id="host-btn">Open host view &#8594;</button>
         </div>
       </div>
       <div class="card-list" id="card-list"></div>
+    </div>
+
+    <div id="recent-sets" style="display:none;margin-top:2.5rem">
+      <div class="section-title" style="margin-bottom:1rem">Recent sets</div>
+      <div id="recent-list" style="display:flex;flex-direction:column;gap:0.6rem"></div>
     </div>
   </div>
 
@@ -403,25 +442,13 @@
 
   // ── Generate ──
   let generatedCards = [];
+  let extendMode = false;
+  let extendSetTitle = '';
 
-  document.getElementById('generate-btn').addEventListener('click', () => {
-    const items = parseItems(itemsInput.value);
-    const n    = getGrid();
-    const free = document.getElementById('free-space').checked;
-    const ipc  = n * n - (free ? 1 : 0);
-    const num  = parseInt(numCardsEl.value) || 1;
-    const winCond = parseInt(winSlider.value);
-    const title   = document.getElementById('card-title-input').value.trim();
-
-    if (items.length < ipc) {
-      alert(`Need at least ${ipc} items for a ${n}×${n} card.`);
-      return;
-    }
-
+  function makeCards(items, n, free, ipc, num, winCond, title) {
     const base = baseUrl();
-    generatedCards = [];
+    const cards = [];
     let pool = shuffle(items);
-
     for (let i = 0; i < num; i++) {
       if (pool.length < ipc) {
         const inPool = new Set(pool);
@@ -431,31 +458,61 @@
       }
       const subset = pool.splice(0, ipc);
       const cardItems = shuffle(subset);
-
-      if (free) {
-        const ci = Math.floor((n * n) / 2);
-        cardItems.splice(ci, 0, 'FREE');
-      }
-
+      if (free) cardItems.splice(Math.floor((n * n) / 2), 0, 'FREE');
       const seed = nanoid(8);
       const payload = { seed, grid: n, items: cardItems, freeSpace: free, winCondition: winCond, title };
-      generatedCards.push({ seed, payload, url: base + 'card.html#' + encodePayload(payload) });
+      cards.push({ seed, payload, url: base + 'card.html#' + encodePayload(payload) });
+    }
+    return cards;
+  }
+
+  document.getElementById('generate-btn').addEventListener('click', () => {
+    const items   = parseItems(itemsInput.value);
+    const n       = getGrid();
+    const free    = document.getElementById('free-space').checked;
+    const ipc     = n * n - (free ? 1 : 0);
+    const num     = parseInt(numCardsEl.value) || 1;
+    const winCond = parseInt(winSlider.value);
+    const title   = document.getElementById('card-title-input').value.trim();
+
+    if (items.length < ipc) {
+      alert(`Need at least ${ipc} items for a ${n}×${n} card.`);
+      return;
     }
 
-    renderOutput(title, n);
+    const newCards = makeCards(items, n, free, ipc, num, winCond, title);
+    if (extendMode) {
+      generatedCards = [...generatedCards, ...newCards];
+      renderOutput(extendSetTitle, n);
+    } else {
+      generatedCards = newCards;
+      renderOutput(title, n);
+    }
+  });
+
+  document.getElementById('extend-clear-btn').addEventListener('click', () => {
+    extendMode = false;
+    extendSetTitle = '';
+    generatedCards = [];
+    document.getElementById('extend-banner').style.display = 'none';
+    document.getElementById('output').style.display = 'none';
+    document.getElementById('empty-state').style.display = '';
   });
 
   function renderOutput(title, n) {
     document.getElementById('empty-state').style.display = 'none';
     const output = document.getElementById('output');
     output.style.display = 'flex';
+    const banner = document.getElementById('extend-banner');
+    banner.style.display = extendMode ? 'flex' : 'none';
+    document.getElementById('extend-label').textContent = extendSetTitle;
     document.getElementById('output-title').textContent =
       `${generatedCards.length} card${generatedCards.length !== 1 ? 's' : ''} generated${title ? ' — ' + title : ''}`;
 
     const list = document.getElementById('card-list');
     list.innerHTML = '';
 
-    generatedCards.forEach(({ seed, payload, url }) => {
+    generatedCards.forEach(({ seed, payload }, idx) => {
       const row = document.createElement('div');
       row.className = 'card-row';
 
@@ -473,18 +530,28 @@
       seedEl.textContent = 'Card ' + seed;
       info.appendChild(seedEl);
 
+      // Rename input
+      const nameInput = document.createElement('input');
+      nameInput.className = 'card-name-input';
+      nameInput.type = 'text';
+      nameInput.placeholder = 'Card name (optional)';
+      nameInput.value = payload.title || '';
+      info.appendChild(nameInput);
+
+      // URL row
       const urlRow = document.createElement('div');
       urlRow.className = 'url-row';
       const urlInput = document.createElement('input');
       urlInput.className = 'url-input';
       urlInput.type = 'text';
       urlInput.readOnly = true;
-      urlInput.value = url;
+      urlInput.value = generatedCards[idx].url;
+
       const copyBtn = document.createElement('button');
       copyBtn.className = 'btn-sm';
       copyBtn.textContent = 'Copy';
       copyBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText(url).then(() => {
+        navigator.clipboard.writeText(urlInput.value).then(() => {
           copyBtn.textContent = 'Copied!';
           setTimeout(() => (copyBtn.textContent = 'Copy'), 1500);
         });
@@ -495,12 +562,38 @@
 
       const openLink = document.createElement('a');
       openLink.className = 'open-link';
-      openLink.href = url;
+      openLink.href = generatedCards[idx].url;
       openLink.target = '_blank';
       openLink.textContent = 'Open card ↗';
       info.appendChild(openLink);
 
+      // QR code
+      const qrWrap = document.createElement('div');
+      qrWrap.className = 'card-qr';
+      const qrEl = document.createElement('div');
+      const qrLabel = document.createElement('span');
+      qrLabel.textContent = 'Scan to play';
+      qrWrap.appendChild(qrEl);
+      qrWrap.appendChild(qrLabel);
+
+      function renderQR(url) {
+        qrEl.innerHTML = '';
+        new QRCode(qrEl, { text: url, width: 88, height: 88, colorDark: '#222034', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+      }
+      renderQR(generatedCards[idx].url);
+
+      // Re-encode URL whenever name changes
+      nameInput.addEventListener('input', () => {
+        payload.title = nameInput.value.trim() || title;
+        const newUrl = baseUrl() + 'card.html#' + encodePayload(payload);
+        generatedCards[idx].url = newUrl;
+        urlInput.value = newUrl;
+        openLink.href = newUrl;
+        renderQR(newUrl);
+      });
+
       row.appendChild(info);
+      row.appendChild(qrWrap);
       list.appendChild(row);
     });
 
@@ -513,6 +606,14 @@
       });
     };
 
+    document.getElementById('lobby-btn').onclick = () => {
+      const lobbyPayload = {
+        title: title || 'Bingo Lobby',
+        cards: generatedCards.map(c => ({ seed: c.seed, url: c.url }))
+      };
+      window.open(baseUrl() + 'lobby.html#' + encodePayload(lobbyPayload), '_blank');
+    };
+
     document.getElementById('host-btn').onclick = () => {
       const hostPayload = {
         title: title || 'Bingo Host View',
@@ -520,6 +621,107 @@
       };
       window.open(baseUrl() + 'host.html#' + encodePayload(hostPayload), '_blank');
     };
+
+    saveCardSet(title, n);
+  }
+
+  // ── Saved card sets ──
+  const SETS_KEY = 'webingo_saved_sets';
+  const MAX_SETS = 8;
+
+  function saveCardSet(title, n) {
+    const sets = loadSets();
+    sets.unshift({
+      title: title || 'Untitled set',
+      grid: n,
+      count: generatedCards.length,
+      saved: Date.now(),
+      cards: generatedCards.map(c => ({ seed: c.seed, url: c.url }))
+    });
+    localStorage.setItem(SETS_KEY, JSON.stringify(sets.slice(0, MAX_SETS)));
+    renderRecentSets();
+  }
+
+  function loadSets() {
+    try { return JSON.parse(localStorage.getItem(SETS_KEY)) || []; } catch { return []; }
+  }
+
+  function renderRecentSets() {
+    const sets = loadSets();
+    const wrap = document.getElementById('recent-sets');
+    const listEl = document.getElementById('recent-list');
+    if (!sets.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    listEl.innerHTML = '';
+    sets.forEach((s, i) => {
+      const row = document.createElement('div');
+      row.className = 'recent-row';
+
+      const meta = document.createElement('div');
+      meta.className = 'recent-row-meta';
+      const titleEl = document.createElement('div');
+      titleEl.className = 'recent-row-title';
+      titleEl.textContent = s.title;
+      const sub = document.createElement('div');
+      sub.className = 'recent-row-sub';
+      sub.textContent = `${s.count} card${s.count !== 1 ? 's' : ''} · ${s.grid}×${s.grid} · ${new Date(s.saved).toLocaleDateString()}`;
+      meta.appendChild(titleEl);
+      meta.appendChild(sub);
+
+      const actions = document.createElement('div');
+      actions.className = 'recent-row-actions';
+
+      const loadBtn = document.createElement('button');
+      loadBtn.className = 'btn-sm';
+      loadBtn.textContent = 'Load';
+      loadBtn.title = 'Restore this set and add more cards';
+      loadBtn.addEventListener('click', () => {
+        generatedCards = s.cards.map(({ seed, url }) => {
+          const hash = url.split('#')[1] || '';
+          const payload = decodePayload(hash) || {};
+          return { seed, payload, url };
+        });
+        extendMode = true;
+        extendSetTitle = s.title;
+        renderOutput(s.title, s.grid);
+        document.querySelector('.right-panel').scrollTop = 0;
+      });
+
+      const lobbyBtn = document.createElement('button');
+      lobbyBtn.className = 'btn-sm';
+      lobbyBtn.textContent = 'Lobby';
+      lobbyBtn.addEventListener('click', () => {
+        const lp = { title: s.title, cards: s.cards };
+        window.open(baseUrl() + 'lobby.html#' + encodePayload(lp), '_blank');
+      });
+
+      const hostBtn = document.createElement('button');
+      hostBtn.className = 'btn-sm';
+      hostBtn.textContent = 'Host';
+      hostBtn.addEventListener('click', () => {
+        const hp = { title: s.title, cards: s.cards };
+        window.open(baseUrl() + 'host.html#' + encodePayload(hp), '_blank');
+      });
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn-sm';
+      delBtn.textContent = '✕';
+      delBtn.title = 'Remove';
+      delBtn.addEventListener('click', () => {
+        const sets = loadSets();
+        sets.splice(i, 1);
+        localStorage.setItem(SETS_KEY, JSON.stringify(sets));
+        renderRecentSets();
+      });
+
+      actions.appendChild(loadBtn);
+      actions.appendChild(lobbyBtn);
+      actions.appendChild(hostBtn);
+      actions.appendChild(delBtn);
+      row.appendChild(meta);
+      row.appendChild(actions);
+      listEl.appendChild(row);
+    });
   }
 
   function buildMiniGrid(payload, n) {
@@ -543,6 +745,7 @@
   // ── Init ──
   updateWinSlider();
   checkPool();
+  renderRecentSets();
 </script>
 </body>
 </html>

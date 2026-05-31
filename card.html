@@ -144,8 +144,11 @@
     .cell-text {
       font-size: 0.75rem;
       font-weight: 600;
-      line-height: 1.2;
-      word-break: break-word;
+      line-height: 1.3;
+      overflow-wrap: break-word;
+      hyphens: auto;
+      width: 100%;
+      overflow: hidden;
     }
     .cell-check {
       position: absolute;
@@ -271,6 +274,8 @@
   let playerName = localStorage.getItem('bingo_player_name') || '';
   let wonAlready = false;
 
+  window.addEventListener('resize', () => { if (cardData) fitCellText(); });
+
   const hash = window.location.hash.slice(1);
 
   if (!hash) {
@@ -302,6 +307,14 @@
   function loadCard() {
     const saved = localStorage.getItem('bingo_state_' + cardData.seed);
     if (saved) { try { markedState = JSON.parse(saved); } catch {} }
+
+    // Name baked into URL by lobby — use it directly, no prompt needed
+    if (cardData.playerName) {
+      playerName = cardData.playerName;
+      localStorage.setItem('bingo_player_name', playerName);
+      renderCard();
+      return;
+    }
 
     if (!playerName) {
       const overlay = document.getElementById('name-overlay');
@@ -360,6 +373,23 @@
     }
 
     checkWin(false);
+    requestAnimationFrame(fitCellText);
+  }
+
+  function fitCellText() {
+    const minPx = 9;
+    document.querySelectorAll('#bingo-grid .cell').forEach(cell => {
+      const el = cell.querySelector('.cell-text');
+      if (!el) return;
+      el.style.fontSize = '';
+      const hasTs  = !!cell.querySelector('.cell-ts');
+      const availH = cell.clientHeight - 14 - (hasTs ? 16 : 0);
+      let size = parseFloat(getComputedStyle(el).fontSize);
+      while (el.scrollHeight > availH && size > minPx) {
+        size -= 1;
+        el.style.fontSize = size + 'px';
+      }
+    });
   }
 
   function addMarkElements(cell, ts) {
